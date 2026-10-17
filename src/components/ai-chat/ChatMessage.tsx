@@ -17,6 +17,25 @@ export function stripDisclaimer(text: string) {
   return text.replace(TRAILING_DISCLAIMER, "").trimEnd();
 }
 
+/** 轻量渲染：**加粗** 转为 <strong>，去掉行首 Markdown 标题符号（模型偶尔输出） */
+function RichText({ text }: { text: string }) {
+  const cleaned = text.replace(/^#{1,6}\s+/gm, "");
+  const parts = cleaned.split(/(\*\*[^*\n]+\*\*)/g);
+  return (
+    <>
+      {parts.map((part, i) =>
+        part.startsWith("**") && part.endsWith("**") && part.length > 4 ? (
+          <strong key={i} className="font-semibold text-white">
+            {part.slice(2, -2)}
+          </strong>
+        ) : (
+          part
+        )
+      )}
+    </>
+  );
+}
+
 export interface ChatMessage {
   id: string;
   role: "user" | "assistant";
@@ -59,7 +78,7 @@ function AssistantBubble({
         {/* 气泡 */}
         <div className="relative rounded-2xl rounded-tl-sm border border-[var(--border)] bg-[var(--card)] px-4 py-3 shadow-sm">
           <p className="text-sm leading-7 text-[var(--foreground)] whitespace-pre-wrap break-words">
-            {isStreaming ? message.content : stripDisclaimer(message.content)}
+            <RichText text={isStreaming ? message.content : stripDisclaimer(message.content)} />
             {isStreaming && <Cursor />}
           </p>
 

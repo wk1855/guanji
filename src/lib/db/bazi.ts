@@ -82,6 +82,25 @@ export async function getLatestBaziChart(userId: string) {
   return data;
 }
 
+// 按出生信息指纹查找已保存的命盘（用于复用解读）
+export async function findBaziChartByInputKey(userId: string, inputKey: string) {
+  const supabase = createServiceRoleClient();
+  const { data, error } = await supabase
+    .from("bazi_charts")
+    .select("id, result_json")
+    .eq("user_id", userId)
+    .eq("result_json->meta->>inputKey", inputKey)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error("[DB:bazi] findBaziChartByInputKey error:", error.message);
+    return null;
+  }
+  return data;
+}
+
 // 获取单条八字命盘详情（验证所有权）
 export async function getBaziChartById(id: string, userId: string) {
   const supabase = createServiceRoleClient();

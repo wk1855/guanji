@@ -44,6 +44,27 @@ declare module "lunar-javascript" {
     getYearInGanZhi(): string;
     getYearShengXiao(): string;
     getMonthInGanZhi(): string;
+    getYearInGanZhiByLiChun(): string;
+    getDayYi(): string[];
+    getDayJi(): string[];
+    getDayChongDesc(): string;
+    getDayChongShengXiao(): string;
+    getDaySha(): string;
+    getZhiXing(): string;
+    getDayTianShen(): string;
+    getDayTianShenLuck(): string;
+    getDayPositionXiDesc(): string;
+    getDayPositionCaiDesc(): string;
+    getDayPositionFuDesc(): string;
+    getPengZuGan(): string;
+    getPengZuZhi(): string;
+    getDayNaYin(): string;
+    getXiu(): string;
+    getXiuLuck(): string;
+    getDayXunKong(): string;
+    getPrevJieQi(wholeDay?: boolean): JieQi;
+    getNextJieQi(wholeDay?: boolean): JieQi;
+    getJieQi(): string;
     getDayInGanZhi(): string;
     getYearInGanZhiExact(): string;
     getMonthInGanZhiExact(): string;
@@ -51,6 +72,11 @@ declare module "lunar-javascript" {
     getSolar(): Solar;
     getEightChar(): EightChar;
     toString(): string;
+  }
+
+  export class JieQi {
+    getName(): string;
+    getSolar(): Solar;
   }
 
   export class EightChar {
@@ -80,7 +106,36 @@ declare module "lunar-javascript" {
     getDayWuXing(): string;
     getTimeWuXing(): string;
     getYun(gender: number, sect?: number): Yun;
+    getYearShiShenGan(): string;
+    getMonthShiShenGan(): string;
+    getTimeShiShenGan(): string;
+    getYearShiShenZhi(): string[];
+    getMonthShiShenZhi(): string[];
+    getDayShiShenZhi(): string[];
+    getTimeShiShenZhi(): string[];
+    getYearDiShi(): string;
+    getMonthDiShi(): string;
+    getDayDiShi(): string;
+    getTimeDiShi(): string;
+    getYearXunKong(): string;
+    getMonthXunKong(): string;
+    getDayXunKong(): string;
+    getTimeXunKong(): string;
+    getTaiYuan(): string;
+    getMingGong(): string;
+    getShenGong(): string;
     toString(): string;
+  }
+
+  export class LunarYear {
+    static fromYear(year: number): LunarYear;
+    getLeapMonth(): number;
+    getMonth(month: number): LunarMonth | null;
+  }
+
+  export class LunarMonth {
+    getDayCount(): number;
+    isLeap(): boolean;
   }
 
   export class Yun {

@@ -22,7 +22,7 @@ describe("computeBaziChart", () => {
     assert.equal(pillar(chart.yearPillar.tianGan, chart.yearPillar.diZhi), "庚午");
     assert.equal(pillar(chart.monthPillar.tianGan, chart.monthPillar.diZhi), "辛巳");
     assert.equal(pillar(chart.dayPillar.tianGan, chart.dayPillar.diZhi), "庚辰");
-    assert.equal(pillar(chart.hourPillar.tianGan, chart.hourPillar.diZhi), "庚辰");
+    assert.equal(pillar(chart.hourPillar!.tianGan, chart.hourPillar!.diZhi), "庚辰");
     assert.equal(chart.dayMaster, "庚");
     assert.equal(chart.yearPillar.wuXing, "金");
   });
@@ -88,7 +88,7 @@ describe("computeBaziChart", () => {
     });
     const sum = Object.values(chart.wuXingBalance).reduce((a, b) => a + b, 0);
     assert.equal(sum, 100);
-    for (const p of [chart.yearPillar, chart.monthPillar, chart.dayPillar, chart.hourPillar]) {
+    for (const p of [chart.yearPillar, chart.monthPillar, chart.dayPillar, chart.hourPillar!]) {
       assert.ok(STEMS.includes(p.tianGan), p.tianGan);
       assert.ok(BRANCHES.includes(p.diZhi), p.diZhi);
     }

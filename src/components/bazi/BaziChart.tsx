@@ -42,6 +42,13 @@ const WU_XING_STYLE: Record<
 // ─── 柱名映射 ────────────────────────────────────────────────
 const PILLAR_NAMES = ["年柱", "月柱", "日柱", "时柱"];
 
+const UNKNOWN_PILLAR: Pillar = { tianGan: "?", diZhi: "?", wuXing: "未知" };
+
+const BRANCH_ELEMENT: Record<string, string> = {
+  子: "水", 亥: "水", 寅: "木", 卯: "木", 巳: "火", 午: "火",
+  申: "金", 酉: "金", 辰: "土", 戌: "土", 丑: "土", 未: "土",
+};
+
 // ─── 单柱组件 ────────────────────────────────────────────────
 function PillarCard({
   pillar,
@@ -174,14 +181,18 @@ export default function BaziChart({ result }: BaziChartProps) {
     { pillar: result.yearPillar, label: PILLAR_NAMES[0], isDay: false },
     { pillar: result.monthPillar, label: PILLAR_NAMES[1], isDay: false },
     { pillar: result.dayPillar, label: PILLAR_NAMES[2], isDay: true },
-    { pillar: result.hourPillar, label: PILLAR_NAMES[3], isDay: false },
+    { pillar: result.hourPillar ?? UNKNOWN_PILLAR, label: PILLAR_NAMES[3], isDay: false },
   ];
 
-  // 统计天干地支五行
-  const allChars = pillars.flatMap((p) => [
-    { char: p.pillar.tianGan, wuXing: p.pillar.wuXing, type: "天干" },
-    { char: p.pillar.diZhi, wuXing: p.pillar.wuXing, type: "地支" },
-  ]);
+  // 统计天干地支五行（地支按本气五行）
+  const allChars = pillars
+    .filter((p) => p.pillar !== UNKNOWN_PILLAR)
+    .flatMap((p) => [
+      { char: p.pillar.tianGan, wuXing: p.pillar.wuXing, type: "天干" },
+      { char: p.pillar.diZhi, wuXing: BRANCH_ELEMENT[p.pillar.diZhi] ?? p.pillar.wuXing, type: "地支" },
+    ]);
+  const details = result.meta?.details;
+  const ts = result.meta?.trueSolar;
 
   return (
     <div>
@@ -240,6 +251,69 @@ export default function BaziChart({ result }: BaziChartProps) {
           })}
         </div>
       </div>
+
+      {/* 十神 / 藏干 / 十二长生 / 空亡 */}
+      {details && details.length > 0 && (
+        <div className="mt-2 rounded-xl border border-[var(--border)] bg-[var(--card)] overflow-x-auto">
+          <table className="w-full text-xs text-center">
+            <thead className="bg-[var(--muted)] text-[var(--muted-foreground)]">
+              <tr>
+                <th className="py-2 px-2 font-medium text-left">排盘细节</th>
+                {details.map((d) => (
+                  <th key={d.name} className="py-2 px-2 font-medium">{d.name}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="text-[var(--foreground)]">
+              <tr className="border-t border-[var(--border)]">
+                <td className="py-1.5 px-2 text-left text-[var(--muted-foreground)]">天干十神</td>
+                {details.map((d) => <td key={d.name} className="py-1.5 px-2">{d.shiShenGan}</td>)}
+              </tr>
+              <tr className="border-t border-[var(--border)]">
+                <td className="py-1.5 px-2 text-left text-[var(--muted-foreground)]">藏干</td>
+                {details.map((d) => (
+                  <td key={d.name} className="py-1.5 px-2 leading-5">
+                    {d.hideGan.map((g, i) => (
+                      <span key={g + i} className="block">{g}<span className="text-[var(--muted-foreground)]">·{d.shiShenZhi[i]}</span></span>
+                    ))}
+                  </td>
+                ))}
+              </tr>
+              <tr className="border-t border-[var(--border)]">
+                <td className="py-1.5 px-2 text-left text-[var(--muted-foreground)]">十二长生</td>
+                {details.map((d) => <td key={d.name} className="py-1.5 px-2">{d.diShi}</td>)}
+              </tr>
+              <tr className="border-t border-[var(--border)]">
+                <td className="py-1.5 px-2 text-left text-[var(--muted-foreground)]">纳音</td>
+                {details.map((d) => <td key={d.name} className="py-1.5 px-2">{d.naYin}</td>)}
+              </tr>
+              <tr className="border-t border-[var(--border)]">
+                <td className="py-1.5 px-2 text-left text-[var(--muted-foreground)]">空亡</td>
+                {details.map((d) => <td key={d.name} className="py-1.5 px-2">{d.xunKong}</td>)}
+              </tr>
+            </tbody>
+          </table>
+          {(result.meta?.taiYuan || ts) && (
+            <p className="px-3 py-2 border-t border-[var(--border)] text-[11px] text-[var(--muted-foreground)] text-left leading-5">
+              {result.meta?.taiYuan && <>胎元 {result.meta.taiYuan}</>}
+              {result.meta?.mingGong && <> · 命宫 {result.meta.mingGong} · 身宫 {result.meta.shenGong}</>}
+              {result.meta?.hourKnown === false && <> · 时辰不详，按三柱排盘</>}
+              {ts && result.meta?.hourKnown !== false && result.meta?.clock && (
+                <>
+                  <br />
+                  钟表 {String(result.meta.clock.hour).padStart(2, "0")}:{String(result.meta.clock.minute).padStart(2, "0")} → 真太阳时{" "}
+                  {String(ts.hour).padStart(2, "0")}:{String(ts.minute).padStart(2, "0")}
+                  {ts.longitude != null
+                    ? `（经度 ${(ts.longitudeMinutes ?? 0) >= 0 ? "+" : ""}${ts.longitudeMinutes} 分，均时差 ${(ts.eotMinutes ?? 0) >= 0 ? "+" : ""}${ts.eotMinutes} 分${ts.dstMinutes ? `，夏令时 −${ts.dstMinutes} 分` : ""}）`
+                    : ts.dstMinutes
+                      ? `（未识别经度，已扣夏令时 ${ts.dstMinutes} 分）`
+                      : "（未识别经度，按钟表时间）"}
+                </>
+              )}
+            </p>
+          )}
+        </div>
+      )}
 
       {/* 大运走势 */}
       {result.meta?.daYun && result.meta.daYun.length > 0 && (

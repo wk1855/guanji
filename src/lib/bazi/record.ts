@@ -53,7 +53,8 @@ export function formatSavedChartForPrompt(row: BaziRecordRow): string {
     wuXingBalance?: Record<string, number>;
     basicReading?: string[];
   };
-  const pillars = [r.yearPillar, r.monthPillar, r.dayPillar, r.hourPillar].map(pillarText);
+  const pillars = [r.yearPillar, r.monthPillar, r.dayPillar, r.hourPillar].map((p, i) => pillarText(p) || (i === 3 ? "时辰不详" : "--"));
+  const details = (r.meta as { details?: { name: string; ganZhi: string; shiShenGan: string; hideGan: string[]; shiShenZhi: string[]; diShi: string; xunKong: string }[] } | undefined)?.details;
   const wx = r.wuXingBalance
     ? Object.entries(r.wuXingBalance).map(([k, v]) => `${k}${v}%`).join(" ")
     : "未知";
@@ -70,6 +71,14 @@ export function formatSavedChartForPrompt(row: BaziRecordRow): string {
     `四柱：${pillars.join(" ")}（年 月 日 时）`,
     `日主：${String(r.dayMaster ?? "")}`,
     `五行占比：${wx}`,
+    ...(details?.length
+      ? [
+          "各柱细节：" +
+            details
+              .map((d) => `${d.name}${d.ganZhi}(干${d.shiShenGan}；藏${d.hideGan.map((g, i) => `${g}${d.shiShenZhi[i] ?? ""}`).join("/")}；${d.diShi}；空亡${d.xunKong})`)
+              .join(" "),
+        ]
+      : []),
     `大运：${daYun}`,
     current ? `当前大运：${current.ganZhi}（${current.startYear}-${current.endYear}）` : "",
     r.basicReading?.[0] ? `原盘格局摘要：${String(r.basicReading[0]).slice(0, 200)}` : "",

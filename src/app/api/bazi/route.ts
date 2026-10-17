@@ -1,45 +1,64 @@
 import { NextRequest, NextResponse } from "next/server";
-import { saveBaziChart } from "@/lib/db/bazi";
+import { findBaziChartByInputKey, saveBaziChart } from "@/lib/db/bazi";
 import { chatCompletion, parseJsonFromModel } from "@/lib/deepseek";
 import { computeBaziChart, formatChartForPrompt } from "@/lib/bazi/chart";
+import { todayAlmanac } from "@/lib/fortune/almanac";
 import { enforceAiRateLimit, requireUser } from "@/lib/require-session";
 
-const SYSTEM_PROMPT = `你是「观己」平台的AI八字解读师。精通八字命理、天干地支、五行生克。
-用户会提供已经由万年历（含节气、真太阳时）精确排出的四柱命盘。
-你只负责解读，严禁改动、重排或质疑四柱、日主、五行占比数字。
+export const maxDuration = 60;
 
-请严格按以下JSON格式返回，不要包含任何其他内容，只返回纯JSON：
+/** 排盘算法 / 提示词版本；变更后旧的解读缓存不再复用 */
+const READING_VERSION = 2;
 
+const SYSTEM_PROMPT = `你是「观己」平台的八字解读师。
+用户会提供已经由万年历（含节气、真太阳时、夏令时修正）精确排出的命盘，以及系统计算好的十神、藏干、十二长生、空亡、大运、流年。
+你只负责解读：严禁改动、重排或质疑四柱、日主、十神、大运等任何给定数据，也不要自行补充未给出的神煞。
+若时柱为「时辰不详」，按三柱论命，不要臆测时柱。
+
+请严格只返回 JSON（不要 markdown）：
 {
-  "yearPillar": { "tianGan": "X", "diZhi": "X", "wuXing": "木/火/土/金/水" },
-  "monthPillar": { "tianGan": "X", "diZhi": "X", "wuXing": "木/火/土/金/水" },
-  "dayPillar": { "tianGan": "X", "diZhi": "X", "wuXing": "木/火/土/金/水" },
-  "hourPillar": { "tianGan": "X", "diZhi": "X", "wuXing": "木/火/土/金/水" },
-  "dayMaster": "日主天干",
-  "wuXingBalance": { "木": 数字, "火": 数字, "土": 数字, "金": 数字, "水": 数字 },
   "basicReading": [
-    "整体格局：200字以内的格局分析，包含日主强弱、用神喜忌",
-    "性格特点：150字以内的性格分析",
-    "近期运势：150字以内的近期运势分析"
+    "整体格局：200字以内，分析日主强弱（结合月令与十二长生）、格局与用神喜忌",
+    "性格特点：150字以内，结合十神组合分析",
+    "近期运势：150字以内，结合当前大运与今年流年对命局的作用"
   ]
 }
 
-要求：
-1. yearPillar/monthPillar/dayPillar/hourPillar/dayMaster/wuXingBalance 必须原样回写用户提供的排盘结果，一个字都不能改
-2. wuXing 填该柱天干对应的五行
-3. 解读温和正向，避免制造焦虑
-4. 引用正统命理典籍
-5. 只返回JSON，不要markdown代码块`;
+要求：解读温和正向，避免制造焦虑；不要编造典籍引文或出处；仅供娱乐参考。`;
+
+function inputKeyOf(p: Record<string, unknown>) {
+  return JSON.stringify([
+    READING_VERSION,
+    p.name,
+    p.gender,
+    p.birthYear,
+    p.birthMonth,
+    p.birthDay,
+    p.hourKnown ? p.birthHour : null,
+    p.hourKnown ? p.birthMinute : null,
+    p.isLunar,
+    p.isLeapMonth,
+    p.birthPlace ?? "",
+  ]);
+}
 
 export async function POST(req: NextRequest) {
   try {
     const auth = await requireUser();
     if (auth.error) return auth.error;
-    const limited = enforceAiRateLimit(auth.user.id);
-    if (limited) return limited;
 
     const body = await req.json();
-    const { name, gender, birthYear, birthMonth, birthDay, birthHour, birthPlace, isLunar } = body;
+    const name = String(body.name ?? "").trim().slice(0, 40);
+    const gender: "male" | "female" = body.gender === "female" ? "female" : "male";
+    const birthYear = Number(body.birthYear);
+    const birthMonth = Number(body.birthMonth);
+    const birthDay = Number(body.birthDay);
+    const hourKnown = body.hourKnown !== false && body.birthHour != null && body.birthHour !== "";
+    const birthHour = hourKnown ? Number(body.birthHour) : null;
+    const birthMinute = hourKnown ? Number(body.birthMinute ?? 0) : null;
+    const isLunar = Boolean(body.isLunar);
+    const isLeapMonth = isLunar && Boolean(body.isLeapMonth);
+    const birthPlace = typeof body.birthPlace === "string" && body.birthPlace ? body.birthPlace : undefined;
 
     if (!name || !birthYear || !birthMonth || !birthDay) {
       return NextResponse.json({ error: "参数不完整" }, { status: 400 });
@@ -47,29 +66,55 @@ export async function POST(req: NextRequest) {
 
     let chart;
     try {
-      chart = computeBaziChart({
-        birthYear: Number(birthYear),
-        birthMonth: Number(birthMonth),
-        birthDay: Number(birthDay),
-        birthHour: birthHour != null ? Number(birthHour) : 12,
-        isLunar: Boolean(isLunar),
-        birthPlace: birthPlace ?? undefined,
-        gender: gender === "female" ? "female" : "male",
-      });
+      chart = computeBaziChart({ birthYear, birthMonth, birthDay, birthHour, birthMinute, hourKnown, isLunar, isLeapMonth, birthPlace, gender });
     } catch (err) {
       const message = err instanceof Error ? err.message : "排盘参数无效";
       return NextResponse.json({ error: message }, { status: 400 });
     }
 
-    const genderText = gender === "male" ? "男" : "女";
-    const calendarType = isLunar ? "农历" : "公历";
-    const userMsg = `请解读以下命盘（四柱已由系统精确排出，请原样写入 JSON 的四柱字段）：
-姓名：${name}
-性别：${genderText}
-用户填写的出生日期：${calendarType} ${birthYear}年${birthMonth}月${birthDay}日
+    const meta = {
+      inputKey: inputKeyOf({ name, gender, birthYear, birthMonth, birthDay, birthHour, birthMinute, hourKnown, isLunar, isLeapMonth, birthPlace }),
+      input: { birthYear, birthMonth, birthDay, birthHour, birthMinute, hourKnown, isLunar, isLeapMonth, birthPlace: birthPlace ?? null },
+      solar: chart.solar,
+      clock: chart.clock,
+      hourKnown: chart.hourKnown,
+      lunar: chart.lunar,
+      trueSolar: chart.trueSolar,
+      nayin: chart.nayin,
+      details: chart.details,
+      taiYuan: chart.taiYuan,
+      mingGong: chart.mingGong,
+      shenGong: chart.shenGong,
+      daYun: chart.daYun,
+      daYunStart: chart.daYunStart,
+      readingVersion: READING_VERSION,
+    };
+    const base = {
+      yearPillar: chart.yearPillar,
+      monthPillar: chart.monthPillar,
+      dayPillar: chart.dayPillar,
+      hourPillar: chart.hourPillar,
+      dayMaster: chart.dayMaster,
+      wuXingBalance: chart.wuXingBalance,
+      meta,
+    };
+
+    // 相同出生信息 + 相同算法版本：直接复用已保存的解读，不重复调用 AI
+    const existing = await findBaziChartByInputKey(auth.user.id, meta.inputKey);
+    const existingReading = (existing?.result_json as { basicReading?: string[] } | undefined)?.basicReading;
+    if (existing && Array.isArray(existingReading) && existingReading.length) {
+      return NextResponse.json({ ...base, basicReading: existingReading, id: existing.id, cached: true });
+    }
+
+    const limited = enforceAiRateLimit(auth.user.id);
+    if (limited) return limited;
+
+    const almanac = todayAlmanac();
+    const userMsg = `请解读以下命盘：
+命主：${name}（${gender === "male" ? "男" : "女"}）
 出生地：${birthPlace ?? "未填写"}
 
-${formatChartForPrompt(chart)}`;
+${formatChartForPrompt(chart, { date: `${almanac.date}`, yearGanZhi: almanac.yearGanZhi, dayGanZhi: almanac.dayGanZhi })}`;
 
     const { content } = await chatCompletion({
       messages: [
@@ -82,44 +127,22 @@ ${formatChartForPrompt(chart)}`;
       maxTokens: 2048,
     });
 
-    const aiResult = parseJsonFromModel<{
-      basicReading?: string[];
-      yearPillar?: unknown;
-      monthPillar?: unknown;
-      dayPillar?: unknown;
-      hourPillar?: unknown;
-      dayMaster?: unknown;
-      wuXingBalance?: unknown;
-    }>(content);
-
+    const aiResult = parseJsonFromModel<{ basicReading?: string[] }>(content);
     const result = {
-      yearPillar: chart.yearPillar,
-      monthPillar: chart.monthPillar,
-      dayPillar: chart.dayPillar,
-      hourPillar: chart.hourPillar,
-      dayMaster: chart.dayMaster,
-      wuXingBalance: chart.wuXingBalance,
-      basicReading: Array.isArray(aiResult.basicReading) ? aiResult.basicReading : [],
-      meta: {
-        solar: chart.solar,
-        lunar: chart.lunar,
-        trueSolar: chart.trueSolar,
-        nayin: chart.nayin,
-        daYun: chart.daYun,
-        daYunStart: chart.daYunStart,
-      },
+      ...base,
+      basicReading: Array.isArray(aiResult.basicReading) ? aiResult.basicReading.map(String) : [],
     };
 
     const chartId = await saveBaziChart({
       userId: auth.user.id,
       name,
-      gender: gender ?? "male",
-      birthYear: Number(birthYear),
-      birthMonth: Number(birthMonth),
-      birthDay: Number(birthDay),
-      birthHour: birthHour != null ? Number(birthHour) : undefined,
-      birthPlace: birthPlace ?? undefined,
-      isLunar: Boolean(isLunar),
+      gender,
+      birthYear,
+      birthMonth,
+      birthDay,
+      birthHour: birthHour ?? undefined,
+      birthPlace,
+      isLunar,
       resultJson: result,
     }).catch((err) => {
       console.error("[bazi API] save chart error:", err);

@@ -64,7 +64,7 @@ function drawPoster(
     { label: "年柱", p: result.yearPillar },
     { label: "月柱", p: result.monthPillar },
     { label: "日柱", p: result.dayPillar },
-    { label: "时柱", p: result.hourPillar },
+    { label: "时柱", p: result.hourPillar ?? { tianGan: "?", diZhi: "?", wuXing: "时辰不详" } },
   ];
 
   const cardW = 140, cardH = 260, gap = 20;

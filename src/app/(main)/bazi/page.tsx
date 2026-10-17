@@ -20,6 +20,9 @@ export interface BaziInfo {
   birthMonth: number;
   birthDay: number;
   birthHour: number;
+  birthMinute: number;
+  hourKnown: boolean;
+  isLeapMonth: boolean;
   birthPlace: string;
   isLunar: boolean;
 }
@@ -34,7 +37,7 @@ export interface BaziResult {
   yearPillar: Pillar;
   monthPillar: Pillar;
   dayPillar: Pillar;
-  hourPillar: Pillar;
+  hourPillar: Pillar | null;
   dayMaster: string;
   wuXingBalance: Record<string, number>;
   basicReading: string[];
@@ -42,11 +45,37 @@ export interface BaziResult {
   meta?: {
     solar?: { year: number; month: number; day: number; hour: number; minute: number };
     lunar?: { monthChinese: string; dayChinese: string; yearGanZhi: string; shengXiao: string };
-    trueSolar?: { applied: boolean; hour: number; minute: number; offsetMinutes: number };
+    clock?: { year: number; month: number; day: number; hour: number; minute: number };
+    hourKnown?: boolean;
+    trueSolar?: {
+      applied: boolean;
+      hour: number;
+      minute: number;
+      offsetMinutes: number;
+      longitude?: number;
+      longitudeMinutes?: number;
+      eotMinutes?: number;
+      dstMinutes?: number;
+    };
+    details?: PillarDetail[];
+    taiYuan?: string;
+    mingGong?: string;
+    shenGong?: string;
     nayin?: { year: string; month: string; day: string; hour: string };
     daYun?: DaYunStep[];
     daYunStart?: { years: number; months: number; days: number; solarDate: string };
   };
+}
+
+export interface PillarDetail {
+  name: string;
+  ganZhi: string;
+  shiShenGan: string;
+  hideGan: string[];
+  shiShenZhi: string[];
+  diShi: string;
+  naYin: string;
+  xunKong: string;
 }
 
 export interface DaYunStep {
@@ -155,8 +184,12 @@ export default function BaziPage() {
                   </span>
                 </p>
                 <p className="text-xs text-[var(--muted-foreground)] mt-1">
-                  {baziInfo.birthYear}年{baziInfo.birthMonth}月
-                  {baziInfo.birthDay}日 · {baziInfo.birthPlace}
+                  {baziInfo.isLunar ? "农历" : "公历"} {baziInfo.birthYear}年{baziInfo.isLeapMonth ? "闰" : ""}{baziInfo.birthMonth}月
+                  {baziInfo.birthDay}日{" "}
+                  {baziInfo.hourKnown
+                    ? `${String(baziInfo.birthHour).padStart(2, "0")}:${String(baziInfo.birthMinute).padStart(2, "0")}`
+                    : "时辰不详"}{" "}
+                  · {baziInfo.birthPlace}
                 </p>
               </div>
               <div className="text-right">

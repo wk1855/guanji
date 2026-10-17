@@ -81,6 +81,9 @@ export default function BaziRecordPage({ params }: { params: { id: string } }) {
     birthMonth: record.birth_month,
     birthDay: record.birth_day,
     birthHour: record.birth_hour ?? 12,
+    birthMinute: result.meta?.clock?.minute ?? 0,
+    hourKnown: record.birth_hour != null,
+    isLeapMonth: Boolean(result.meta?.lunar && (result.meta.lunar as { isLeapMonth?: boolean }).isLeapMonth),
     birthPlace: record.birth_place ?? "",
     isLunar: record.is_lunar,
   };
@@ -109,7 +112,9 @@ export default function BaziRecordPage({ params }: { params: { id: string } }) {
           </p>
           <p className="text-xs text-[var(--muted-foreground)] mt-1">
             {record.is_lunar ? "农历" : "公历"} {record.birth_year}年{record.birth_month}月{record.birth_day}日
-            {record.birth_hour != null ? ` ${record.birth_hour}时` : ""}
+            {record.birth_hour != null
+              ? ` ${String(record.birth_hour).padStart(2, "0")}:${String(meta?.clock?.minute ?? 0).padStart(2, "0")}`
+              : " 时辰不详"}
             {record.birth_place ? ` · ${record.birth_place}` : ""}
           </p>
           {meta?.trueSolar?.applied && (

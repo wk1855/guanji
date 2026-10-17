@@ -83,6 +83,9 @@ export function WuXingSummary({ balance }: { balance: Record<string, number> }) 
       最旺，
       <span className={`${colorMap[weakest[0]]} font-medium`}>{weakest[0]}（{weakPct}%）</span>{" "}
       最弱。
+      <span className="block mt-1 opacity-70">
+        说明：按天干、地支藏干加权并将月令（月支）权重加倍估算的五行力量，仅作参考，不等同于旺衰定论。
+      </span>
     </p>
   );
 }

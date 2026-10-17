@@ -5,20 +5,25 @@ import { Loader2, Info } from "lucide-react";
 import type { BaziInfo } from "@/app/(main)/bazi/page";
 
 // ─── 常量数据 ────────────────────────────────────────────────
+// 时辰选择器只是快捷方式：点选后填入该时辰的代表时间（尽量取时辰中段，避开边界）。
+// 子时拆成早子 / 晚子，避免把 00:00 经真太阳时回拨到前一天。
 const SHICHEN_LIST = [
-  { label: "子时", range: "23:00 – 01:00", hour: 0 },
-  { label: "丑时", range: "01:00 – 03:00", hour: 2 },
-  { label: "寅时", range: "03:00 – 05:00", hour: 4 },
-  { label: "卯时", range: "05:00 – 07:00", hour: 6 },
-  { label: "辰时", range: "07:00 – 09:00", hour: 8 },
-  { label: "巳时", range: "09:00 – 11:00", hour: 10 },
-  { label: "午时", range: "11:00 – 13:00", hour: 12 },
-  { label: "未时", range: "13:00 – 15:00", hour: 14 },
-  { label: "申时", range: "15:00 – 17:00", hour: 16 },
-  { label: "酉时", range: "17:00 – 19:00", hour: 18 },
-  { label: "戌时", range: "19:00 – 21:00", hour: 20 },
-  { label: "亥时", range: "21:00 – 23:00", hour: 22 },
+  { label: "早子时", range: "00:00 – 01:00", hour: 0, minute: 30 },
+  { label: "丑时", range: "01:00 – 03:00", hour: 2, minute: 0 },
+  { label: "寅时", range: "03:00 – 05:00", hour: 4, minute: 0 },
+  { label: "卯时", range: "05:00 – 07:00", hour: 6, minute: 0 },
+  { label: "辰时", range: "07:00 – 09:00", hour: 8, minute: 0 },
+  { label: "巳时", range: "09:00 – 11:00", hour: 10, minute: 0 },
+  { label: "午时", range: "11:00 – 13:00", hour: 12, minute: 0 },
+  { label: "未时", range: "13:00 – 15:00", hour: 14, minute: 0 },
+  { label: "申时", range: "15:00 – 17:00", hour: 16, minute: 0 },
+  { label: "酉时", range: "17:00 – 19:00", hour: 18, minute: 0 },
+  { label: "戌时", range: "19:00 – 21:00", hour: 20, minute: 0 },
+  { label: "亥时", range: "21:00 – 23:00", hour: 22, minute: 0 },
+  { label: "晚子时", range: "23:00 – 24:00", hour: 23, minute: 30 },
 ];
+
+const pad2 = (n: number) => String(n).padStart(2, "0");
 
 const PROVINCES: Record<string, string[]> = {
   北京市: ["东城区", "西城区", "朝阳区", "丰台区", "石景山区", "海淀区", "门头沟区", "房山区", "通州区", "顺义区", "昌平区", "大兴区", "怀柔区", "平谷区", "密云区", "延庆区"],
@@ -113,7 +118,12 @@ export default function BaziForm({ onSubmit, isLoading }: BaziFormProps) {
     birthMonth: 6,
     birthDay: 15,
     birthHour: 8,
+    birthMinute: 0,
+    hourKnown: true,
+    isLeapMonth: false,
   });
+
+  const maxDay = isLunar ? 30 : new Date(Date.UTC(form.birthYear || 2000, form.birthMonth, 0)).getUTCDate();
 
   const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) =>
     setForm((prev) => ({ ...prev, [k]: v }));
@@ -123,6 +133,7 @@ export default function BaziForm({ onSubmit, isLoading }: BaziFormProps) {
     if (!form.name.trim()) e.name = "请输入姓名";
     if (!selectedProvince) e.province = "请选择省份";
     if (!selectedCity) e.city = "请选择城市";
+    if (form.birthDay > maxDay) e.day = `该月只有 ${maxDay} 天`;
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -132,6 +143,7 @@ export default function BaziForm({ onSubmit, isLoading }: BaziFormProps) {
     if (!validate()) return;
     onSubmit({
       ...form,
+      isLeapMonth: isLunar && form.isLeapMonth,
       birthPlace: `${selectedProvince}${selectedCity}`,
       isLunar,
     });
@@ -234,7 +246,7 @@ export default function BaziForm({ onSubmit, isLoading }: BaziFormProps) {
               value={form.birthDay}
               onChange={(e) => set("birthDay", Number(e.target.value))}
             >
-              {Array.from({ length: 30 }, (_, i) => i + 1).map((d) => (
+              {Array.from({ length: maxDay }, (_, i) => i + 1).map((d) => (
                 <option key={d} value={d}>
                   {d}日
                 </option>
@@ -244,26 +256,75 @@ export default function BaziForm({ onSubmit, isLoading }: BaziFormProps) {
         </div>
       </div>
 
-      {/* 出生时辰 */}
-      <div>
-        <Label required>出生时辰</Label>
-        <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-          {SHICHEN_LIST.map((s) => (
-            <button
-              key={s.label}
-              type="button"
-              onClick={() => set("birthHour", s.hour)}
-              className={`rounded-xl border py-2.5 px-1 text-center transition-all ${
-                form.birthHour === s.hour
-                  ? "border-[var(--primary)] bg-[var(--primary)]/8 text-[var(--primary)]"
-                  : "border-[var(--border)] text-[var(--muted-foreground)] hover:border-[var(--primary)]/40"
-              }`}
-            >
-              <p className="text-sm font-semibold">{s.label}</p>
-              <p className="text-[10px] mt-0.5 opacity-70">{s.range}</p>
-            </button>
-          ))}
+      {(isLunar || errors.day) && (
+        <div className="-mt-3 flex items-center gap-4">
+          {isLunar && (
+            <label className="flex items-center gap-1.5 text-xs text-[var(--muted-foreground)] cursor-pointer">
+              <input
+                type="checkbox"
+                checked={form.isLeapMonth}
+                onChange={(e) => set("isLeapMonth", e.target.checked)}
+              />
+              闰月（如闰二月）
+            </label>
+          )}
+          {errors.day && <p className="text-xs text-red-500">{errors.day}</p>}
         </div>
+      )}
+
+      {/* 出生时间 */}
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <Label required>出生时间</Label>
+          <label className="flex items-center gap-1.5 text-xs text-[var(--muted-foreground)] cursor-pointer">
+            <input
+              type="checkbox"
+              checked={!form.hourKnown}
+              onChange={(e) => set("hourKnown", !e.target.checked)}
+            />
+            不知道时辰（只排三柱）
+          </label>
+        </div>
+        {form.hourKnown && (
+          <>
+            <div className="flex items-center gap-3 mb-3">
+              <Input
+                type="time"
+                value={`${pad2(form.birthHour)}:${pad2(form.birthMinute)}`}
+                onChange={(e) => {
+                  const [h, m] = e.target.value.split(":").map(Number);
+                  if (Number.isFinite(h) && Number.isFinite(m)) {
+                    setForm((prev) => ({ ...prev, birthHour: h, birthMinute: m }));
+                  }
+                }}
+                className="max-w-40"
+              />
+              <span className="text-xs text-[var(--muted-foreground)]">
+                精确到分钟（按出生证明上的钟表时间填写）
+              </span>
+            </div>
+            <p className="text-[11px] text-[var(--muted-foreground)] mb-2">
+              或快速选择时辰（填入该时辰的代表时间；出生在时辰交界附近请填精确时间）：
+            </p>
+            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+              {SHICHEN_LIST.map((s) => (
+                <button
+                  key={s.label}
+                  type="button"
+                  onClick={() => setForm((prev) => ({ ...prev, birthHour: s.hour, birthMinute: s.minute }))}
+                  className={`rounded-xl border py-2 px-1 text-center transition-all ${
+                    form.birthHour === s.hour && form.birthMinute === s.minute
+                      ? "border-[var(--primary)] bg-[var(--primary)]/8 text-[var(--primary)]"
+                      : "border-[var(--border)] text-[var(--muted-foreground)] hover:border-[var(--primary)]/40"
+                  }`}
+                >
+                  <p className="text-sm font-semibold">{s.label}</p>
+                  <p className="text-[10px] mt-0.5 opacity-70">{s.range}</p>
+                </button>
+              ))}
+            </div>
+          </>
+        )}
       </div>
 
       {/* 出生省市 */}
@@ -317,8 +378,8 @@ export default function BaziForm({ onSubmit, isLoading }: BaziFormProps) {
       <div className="flex items-start gap-2 px-4 py-3 rounded-xl bg-[var(--primary)]/6 border border-[var(--primary)]/20">
         <Info size={14} className="text-[var(--primary)] mt-0.5 flex-shrink-0" />
         <p className="text-xs text-[var(--primary)] leading-5">
-          系统将根据您的出生地自动进行{" "}
-          <strong>真太阳时换算</strong>，以获得更精准的命盘结果。
+          系统会按出生地经度与均时差换算<strong>真太阳时</strong>；1986–1991 年夏令时期间出生的会自动扣除 1 小时。
+          节气交接精确到分钟。
         </p>
       </div>
 

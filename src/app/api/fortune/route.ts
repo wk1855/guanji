@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 import { getFortuneCacheByDate, saveFortuneCacheByDate } from "@/lib/db/fortune";
+import { chatCompletion, parseJsonFromModel } from "@/lib/deepseek";
+import { enforceAiRateLimit, requireUser } from "@/lib/require-session";
+
+export const dynamic = "force-dynamic";
 
 const SYSTEM_PROMPT = `你是「观己」平台的AI运势分析师。你精通八字命理、紫微斗数等东方命理体系。
 现在需要你生成今日运势内容。请严格按以下JSON格式返回，不要包含任何其他内容，只返回纯JSON：
@@ -61,19 +65,24 @@ const SYSTEM_PROMPT = `你是「观己」平台的AI运势分析师。你精通�
 
 export async function GET() {
   try {
-    // 今日日期（上海时区）
-    const dateStr = new Date().toLocaleDateString("zh-CN", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      timeZone: "Asia/Shanghai",
-    }).replace(/\//g, "-");
+    const auth = await requireUser();
+    if (auth.error) return auth.error;
+    const limited = enforceAiRateLimit(auth.user.id);
+    if (limited) return limited;
 
-    // 先查数据库缓存
+    const dateStr = new Date()
+      .toLocaleDateString("zh-CN", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        timeZone: "Asia/Shanghai",
+      })
+      .replace(/\//g, "-");
+
     const cached = await getFortuneCacheByDate(dateStr);
     if (cached) {
       return NextResponse.json(cached, {
-        headers: { "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=1800" },
+        headers: { "Cache-Control": "private, max-age=3600" },
       });
     }
 
@@ -85,48 +94,25 @@ export async function GET() {
       timeZone: "Asia/Shanghai",
     });
 
-    const apiUrl = process.env.DEEPSEEK_API_URL || "https://api.deepseek.com/chat/completions";
-    const apiKey = process.env.DEEPSEEK_API_KEY!;
-    const model = (process.env.DEEPSEEK_MODEL || "deepseek-chat").trim();
-
-    const res = await fetch(apiUrl, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: `今天是${today}，请生成今日运势。` },
-        ],
-        temperature: 0.8,
-        stream: false,
-      }),
+    const { content } = await chatCompletion({
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        { role: "user", content: `今天是${today}，请生成今日运势。` },
+      ],
+      json: true,
+      thinking: false,
+      temperature: 0.8,
+      maxTokens: 2048,
     });
 
-    if (!res.ok) {
-      const errText = await res.text().catch(() => "unknown");
-      console.error("[fortune API] upstream error:", res.status, errText);
-      return NextResponse.json({ error: "AI 服务暂不可用" }, { status: 502 });
-    }
+    const fortune = parseJsonFromModel<Record<string, unknown>>(content);
 
-    const data = await res.json();
-    const content = data.choices?.[0]?.message?.content ?? "";
-
-    const cleaned = content.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
-    const fortune = JSON.parse(cleaned);
-
-    // 异步保存到数据库缓存
     saveFortuneCacheByDate(dateStr, fortune).catch((err) =>
       console.error("[fortune API] save cache error:", err)
     );
 
     return NextResponse.json(fortune, {
-      headers: {
-        "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=1800",
-      },
+      headers: { "Cache-Control": "private, max-age=3600" },
     });
   } catch (err) {
     console.error("[fortune API] error:", err);

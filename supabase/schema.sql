@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS public.users (
   email               TEXT        UNIQUE NOT NULL,
   name                TEXT,
   avatar_url          TEXT,
+  password_hash       TEXT,                              -- 仅 credentials / 站长账号
   phone               TEXT,
   tier                TEXT        NOT NULL DEFAULT 'free' CHECK (tier IN ('free', 'basic', 'pro')),
   ai_chat_remaining   INT         NOT NULL DEFAULT 10,
@@ -26,10 +27,13 @@ CREATE TABLE IF NOT EXISTS public.users (
   last_login_at       TIMESTAMPTZ
 );
 
-COMMENT ON TABLE public.users IS '用户表：存储所有用户信息，与 NextAuth OAuth 同步';
-COMMENT ON COLUMN public.users.provider_id IS 'OAuth 提供商的 Account ID（如 GitHub user id）';
-COMMENT ON COLUMN public.users.ai_chat_remaining IS '今日剩余 AI 对话次数，每日重置';
-COMMENT ON COLUMN public.users.ai_chat_total IS '该用户等级对应的每日 AI 对话总配额';
+COMMENT ON TABLE public.users IS '用户表。本站为单账号个人使用，登录时按 OWNER_USERNAME 自动 upsert 为 pro。';
+COMMENT ON COLUMN public.users.provider_id IS '账号唯一键，站长为 owner:<username>';
+COMMENT ON COLUMN public.users.password_hash IS 'bcrypt 哈希；首次登录时由应用写入';
+COMMENT ON COLUMN public.users.ai_chat_remaining IS '今日剩余 AI 对话次数（个人站固定为无限制，此字段仅兼容旧结构）';
+COMMENT ON COLUMN public.users.ai_chat_total IS '该用户等级对应的每日 AI 对话总配额；-1 表示不限';
+
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS password_hash TEXT;
 
 -- ================================================================
 -- 2. 八字命盘表
@@ -373,7 +377,7 @@ BEGIN
 END;
 $$;
 
--- 函数4: 每日重置 AI 对话次数（通过 cron job 或 Supabase Edge Function 调用）
+-- 函数4: 每日重置 AI 对话次数（个人站无配额，保留函数但不需要 Cron）
 CREATE OR REPLACE FUNCTION public.reset_daily_ai_quota()
 RETURNS INT
 LANGUAGE plpgsql

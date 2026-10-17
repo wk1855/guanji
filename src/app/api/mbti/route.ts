@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { saveMbtiResult } from "@/lib/db/mbti";
 import { MBTI_FIVE_ELEMENT } from "@/lib/constants";
+import { chatCompletion, parseJsonFromModel } from "@/lib/deepseek";
+import { enforceAiRateLimit, requireUser } from "@/lib/require-session";
 import type { MbtiAnswers, MbtiType, FiveElement } from "@/types";
 
 // ==========================================
@@ -89,6 +89,11 @@ const SYSTEM_PROMPT = `你是「观己」平台的性格解析师，融合16种�
 
 export async function POST(req: NextRequest) {
   try {
+    const auth = await requireUser();
+    if (auth.error) return auth.error;
+    const limited = enforceAiRateLimit(auth.user.id);
+    if (limited) return limited;
+
     const body = await req.json();
     const { answers } = body as { answers: MbtiAnswers };
 
@@ -96,15 +101,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "答题数据不完整" }, { status: 400 });
     }
 
-    // 1. 本地计算维度得分和类型
     const scores = calculateScores(answers);
     const { mbtiType, E, I, S, N, T, F, J, P } = scores;
     const elementAffinity = (MBTI_FIVE_ELEMENT[mbtiType] ?? "水") as FiveElement;
-
-    // 2. 调用 DeepSeek AI 生成个性化解读
-    const apiUrl = process.env.DEEPSEEK_API_URL || "https://api.deepseek.com/chat/completions";
-    const apiKey = process.env.DEEPSEEK_API_KEY!;
-    const model = (process.env.DEEPSEEK_MODEL || "deepseek-chat").trim();
 
     const userMsg = `用户的MBTI测试结果：
 人格类型：${mbtiType}
@@ -117,35 +116,23 @@ export async function POST(req: NextRequest) {
 
 请根据以上信息，按要求返回个性化解读JSON。`;
 
-    const res = await fetch(apiUrl, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: userMsg },
-        ],
-        temperature: 0.7,
-        stream: false,
-      }),
+    const { content } = await chatCompletion({
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        { role: "user", content: userMsg },
+      ],
+      json: true,
+      thinking: false,
+      temperature: 0.7,
+      maxTokens: 1024,
     });
+    const aiResult = parseJsonFromModel<{
+      aiReading?: string;
+      keyTraits?: string[];
+      compatibleTypes?: string[];
+      elementReading?: string;
+    }>(content);
 
-    if (!res.ok) {
-      const errText = await res.text().catch(() => "unknown");
-      console.error("[mbti API] upstream error:", res.status, errText);
-      return NextResponse.json({ error: "AI 服务暂不可用" }, { status: 502 });
-    }
-
-    const aiData = await res.json();
-    const content = aiData.choices?.[0]?.message?.content ?? "{}";
-    const cleaned = content.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
-    const aiResult = JSON.parse(cleaned);
-
-    // 3. 组装最终结果
     const result = {
       mbtiType,
       scores: { E, I, S, N, T, F, J, P },
@@ -156,27 +143,20 @@ export async function POST(req: NextRequest) {
       elementReading: aiResult.elementReading ?? "",
     };
 
-    // 4. 登录用户异步保存到数据库（不阻塞响应）
-    const session = await getServerSession(authOptions);
-    if (session?.user) {
-      const userId = (session.user as any).id;
-      if (userId) {
-        saveMbtiResult({
-          userId,
-          mbtiType,
-          eScore: E,
-          iScore: I,
-          sScore: S,
-          nScore: N,
-          tScore: T,
-          fScore: F,
-          jScore: J,
-          pScore: P,
-          aiReading: aiResult.aiReading,
-          elementAffinity,
-        }).catch((err) => console.error("[mbti API] save result error:", err));
-      }
-    }
+    saveMbtiResult({
+      userId: auth.user.id,
+      mbtiType,
+      eScore: E,
+      iScore: I,
+      sScore: S,
+      nScore: N,
+      tScore: T,
+      fScore: F,
+      jScore: J,
+      pScore: P,
+      aiReading: aiResult.aiReading,
+      elementAffinity,
+    }).catch((err) => console.error("[mbti API] save result error:", err));
 
     return NextResponse.json(result);
   } catch (err) {

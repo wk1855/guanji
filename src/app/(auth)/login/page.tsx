@@ -1,8 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { signIn } from "next-auth/react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { Eye, EyeOff, User, Lock } from "lucide-react";
 import StarField from "@/components/layout/StarField";
@@ -76,15 +75,12 @@ function LoginBackground() {
 
 function LoginForm() {
   const searchParams = useSearchParams();
-  const router = useRouter();
   const callbackUrl = searchParams.get("callbackUrl") || "/bazi";
   const error = searchParams.get("error");
 
-  const [mode, setMode] = useState<"login" | "register">("login");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [formError, setFormError] = useState("");
-  const [formSuccess, setFormSuccess] = useState("");
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -92,39 +88,16 @@ function LoginForm() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setFormError("");
-    setFormSuccess("");
     setLoading(true);
 
     try {
-      if (mode === "register") {
-        const res = await fetch("/api/auth/register", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username, password }),
-        });
-        const data = await res.json();
-        if (!res.ok) {
-          setFormError(data.error?.message || "注册失败");
-          return;
-        }
-        setFormSuccess("注册成功！正在登录...");
-        const result = await signIn("credentials", {
-          username, password, redirect: false,
-        });
-        if (result?.error) {
-          setFormError("注册成功但登录失败，请手动登录");
-        } else {
-          window.location.href = callbackUrl;
-        }
+      const result = await signIn("credentials", {
+        username, password, redirect: false,
+      });
+      if (result?.error) {
+        setFormError("用户名或密码错误");
       } else {
-        const result = await signIn("credentials", {
-          username, password, redirect: false,
-        });
-        if (result?.error) {
-          setFormError("用户名或密码错误");
-        } else {
-          window.location.href = callbackUrl;
-        }
+        window.location.href = callbackUrl;
       }
     } finally {
       setLoading(false);
@@ -172,30 +145,9 @@ function LoginForm() {
           </div>
         )}
 
-        {/* 标题 + 模式切换 */}
         <div className="mb-6">
-          <div className="flex rounded-xl bg-white/5 p-1 mb-4">
-            <button
-              onClick={() => { setMode("login"); setFormError(""); }}
-              className={`flex-1 rounded-lg py-2 text-sm font-medium transition ${
-                mode === "login"
-                  ? "bg-[#5749F4] text-white shadow"
-                  : "text-white/50 hover:text-white/80"
-              }`}
-            >
-              登录
-            </button>
-            <button
-              onClick={() => { setMode("register"); setFormError(""); }}
-              className={`flex-1 rounded-lg py-2 text-sm font-medium transition ${
-                mode === "register"
-                  ? "bg-[#5749F4] text-white shadow"
-                  : "text-white/50 hover:text-white/80"
-              }`}
-            >
-              注册
-            </button>
-          </div>
+          <h2 className="text-lg font-medium text-white/90">站长登录</h2>
+          <p className="mt-1 text-xs text-white/35">本站仅供个人使用，使用环境变量中的账号登录</p>
         </div>
 
         {/* 表单 */}
@@ -204,7 +156,7 @@ function LoginForm() {
             <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
             <input
               type="text"
-              placeholder={mode === "register" ? "用户名（2-20位，字母/数字/中文）" : "用户名"}
+              placeholder="用户名"
               required
               value={username}
               onChange={e => setUsername(e.target.value)}
@@ -216,7 +168,7 @@ function LoginForm() {
             <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
             <input
               type={showPassword ? "text" : "password"}
-              placeholder={mode === "register" ? "密码（至少 6 位）" : "密码"}
+              placeholder="密码"
               required
               value={password}
               onChange={e => setPassword(e.target.value)}
@@ -237,47 +189,17 @@ function LoginForm() {
               {formError}
             </div>
           )}
-          {formSuccess && (
-            <div className="rounded-xl border border-green-500/20 bg-green-500/10 px-4 py-2.5 text-sm text-green-300">
-              {formSuccess}
-            </div>
-          )}
-
           <button
             type="submit"
             disabled={loading}
             className="w-full py-3 rounded-xl bg-gradient-to-r from-[#5749F4] to-[#7C3AED] text-white text-sm font-semibold hover:opacity-90 active:scale-[0.98] transition disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-[#5749F4]/25"
           >
-            {loading ? "处理中..." : mode === "login" ? "登录" : "注册"}
+            {loading ? "登录中..." : "登录"}
           </button>
         </form>
 
-        {/* 分割线 */}
-        <div className="flex items-center gap-3 mb-5">
-          <div className="flex-1 h-px bg-white/10" />
-          <span className="text-xs text-white/25">或</span>
-          <div className="flex-1 h-px bg-white/10" />
-        </div>
-
-        {/* OAuth */}
-        <div className="space-y-3 mb-6">
-          <button
-            onClick={() => { if (loading) return; setLoading(true); signIn("github", { callbackUrl }); }}
-            disabled={loading}
-            className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition text-sm font-medium text-white disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
-            </svg>
-            {loading ? "跳转中..." : "使用 GitHub 登录"}
-          </button>
-        </div>
-
         <p className="text-center text-xs text-white/25 leading-relaxed">
-          登录即同意{" "}
-          <Link href="/terms" className="text-[#8B7CF6] hover:underline">《用户协议》</Link>
-          {" "}与{" "}
-          <Link href="/privacy" className="text-[#8B7CF6] hover:underline">《隐私政策》</Link>
+          内容仅供娱乐参考，不构成任何决策建议
         </p>
       </div>
 

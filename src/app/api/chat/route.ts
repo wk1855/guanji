@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { decrementAiChatQuota, refundAiChatQuota } from "@/lib/db/users";
-import { quotaExhausted, unauthorized } from "@/lib/utils/response";
+import { chatCompletionStream } from "@/lib/deepseek";
+import { enforceAiRateLimit, requireUser } from "@/lib/require-session";
 
 const SYSTEM_PROMPT = `你是「观己」平台的AI命理师，名为「玄机」。
 你精通八字命理、紫微斗数、梅花易数等东方命理体系，同时融合现代积极心理学为用户提供温和、正向的人生参考。
@@ -23,17 +21,15 @@ const SYSTEM_PROMPT = `你是「观己」平台的AI命理师，名为「玄机�
 const FORBIDDEN_WORDS = ["算命", "改命", "必中", "大凶", "破财", "血光之灾", "消灾", "化解灾难"];
 
 function containsForbiddenWords(text: string): boolean {
-  return FORBIDDEN_WORDS.some(word => text.includes(word));
+  return FORBIDDEN_WORDS.some((word) => text.includes(word));
 }
 
 export async function POST(req: NextRequest) {
   try {
-    // 认证检查
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return unauthorized("请先登录后才能使用 AI 命理师");
-    }
-    const userId = (session.user as any).id as string;
+    const auth = await requireUser();
+    if (auth.error) return auth.error;
+    const limited = enforceAiRateLimit(auth.user.id);
+    if (limited) return limited;
 
     const body = await req.json();
     const { messages } = body as { messages: { role: string; content: string }[] };
@@ -42,8 +38,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "messages 参数无效" }, { status: 400 });
     }
 
-    // 检查用户最后一条消息是否包含违禁词
-    const lastUserMsg = messages.filter(m => m.role === "user").at(-1);
+    const lastUserMsg = messages.filter((m) => m.role === "user").at(-1);
     if (lastUserMsg && containsForbiddenWords(lastUserMsg.content)) {
       return NextResponse.json(
         { error: "您的提问包含不合规内容，请调整后重试。" },
@@ -51,62 +46,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // AI 配额检查与扣减
-    const quotaResult = await decrementAiChatQuota(userId);
-    if (!quotaResult.success) {
-      return quotaExhausted();
-    }
-
-    // 构造发往豆包的消息列表（注入系统提示）
     const upstreamMessages = [
-      { role: "system", content: SYSTEM_PROMPT },
-      ...messages.slice(-20), // 只取最近20条，避免 token 超限
+      { role: "system" as const, content: SYSTEM_PROMPT },
+      ...messages.slice(-20).map((m) => ({
+        role: (m.role === "assistant" ? "assistant" : "user") as "assistant" | "user",
+        content: m.content,
+      })),
     ];
 
-    const apiUrl = process.env.DEEPSEEK_API_URL || "https://api.deepseek.com/chat/completions";
-    const apiKey = process.env.DEEPSEEK_API_KEY!;
-    const model = (process.env.DEEPSEEK_MODEL || "deepseek-chat").trim();
-
-    const upstreamRes = await fetch(apiUrl, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model,
-        messages: upstreamMessages,
-        stream: true,
-      }),
-    });
-
-    if (!upstreamRes.ok || !upstreamRes.body) {
-      const errText = await upstreamRes.text().catch(() => "unknown error");
-      console.error("[chat API] upstream error:", upstreamRes.status, errText);
-      // AI 调用失败，退还配额
-      refundAiChatQuota(userId).catch(console.error);
-      return NextResponse.json(
-        { error: `AI 服务暂时不可用 (${upstreamRes.status})`, detail: errText },
-        { status: 502 }
-      );
-    }
-
-    // 直接 pipe 上游流到前端
-    const stream = new TransformStream({
-      transform(chunk, controller) {
-        controller.enqueue(chunk);
-      },
-    });
-
-    upstreamRes.body.pipeTo(stream.writable).catch(console.error);
-
-    return new Response(stream.readable, {
-      headers: {
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache, no-transform",
-        "X-Accel-Buffering": "no",
-        "Connection": "keep-alive",
-      },
+    return await chatCompletionStream({
+      messages: upstreamMessages,
+      maxTokens: 2048,
     });
   } catch (err) {
     console.error("[chat API] error:", err);

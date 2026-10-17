@@ -1,16 +1,15 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { getUserBaziCharts } from "@/lib/db/bazi";
-import { ok, unauthorized, serverError } from "@/lib/utils/response";
+import { ok, serverError } from "@/lib/utils/response";
+import { requireUser } from "@/lib/require-session";
+
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) return unauthorized();
+    const auth = await requireUser();
+    if (auth.error) return auth.error;
 
-    const userId = (session.user as any).id as string;
-    const charts = await getUserBaziCharts(userId, 20);
-
+    const charts = await getUserBaziCharts(auth.user.id, 20);
     return ok(charts);
   } catch (err) {
     console.error("[bazi/history GET] error:", err);

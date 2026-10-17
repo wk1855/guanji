@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Plus, MessageSquare, Settings, Crown, X, Menu } from "lucide-react";
+import { Plus, MessageSquare, Settings, X, Menu } from "lucide-react";
 import ChatMessageItem, {
   TypingIndicator,
   type ChatMessage,
@@ -79,16 +79,12 @@ function Sidebar({
   activeId,
   onSelect,
   onNew,
-  remainingCount,
-  quotaTotal,
   onClose,
 }: {
   sessions: ChatSession[];
   activeId: string;
   onSelect: (id: string) => void;
   onNew: () => void;
-  remainingCount: number;
-  quotaTotal: number;
   onClose?: () => void;
 }) {
   return (
@@ -143,38 +139,10 @@ function Sidebar({
         ))}
       </div>
 
-      {/* 底部：次数 + 设置 */}
       <div className="border-t border-[var(--border)] p-4 space-y-3">
-        {/* AI 次数 */}
         <div className="rounded-xl bg-[var(--muted)] px-3 py-2.5">
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-xs text-[var(--muted-foreground)]">
-              今日剩余次数
-            </span>
-            <span
-              className={`text-sm font-bold ${
-                remainingCount > 5 ? "text-green-500" : "text-amber-500"
-              }`}
-            >
-              {remainingCount}
-            </span>
-          </div>
-          <div className="w-full h-1.5 rounded-full bg-[var(--border)] overflow-hidden">
-            <div
-              className={`h-full rounded-full transition-all ${
-                remainingCount > 5 ? "bg-green-400" : "bg-amber-400"
-              }`}
-              style={{ width: `${quotaTotal > 0 ? (remainingCount / quotaTotal) * 100 : 0}%` }}
-            />
-          </div>
+          <p className="text-xs text-[var(--muted-foreground)]">站长账号 · 无限对话</p>
         </div>
-
-        {/* 升级按钮 */}
-        <button className="w-full h-9 rounded-xl bg-gradient-to-r from-amber-400 to-orange-400 text-white text-xs font-semibold flex items-center justify-center gap-1.5 hover:opacity-90 transition-all">
-          <Crown size={13} />
-          升级会员 · 无限对话
-        </button>
-
         <button className="w-full h-9 rounded-xl border border-[var(--border)] text-xs text-[var(--muted-foreground)] flex items-center justify-center gap-1.5 hover:bg-[var(--muted)] transition-colors">
           <Settings size={13} />
           设置
@@ -194,29 +162,11 @@ export default function AIChatPage() {
   const [inputValue, setInputValue] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
-  const [remainingCount, setRemainingCount] = useState(10);
-  const [quotaTotal, setQuotaTotal] = useState(10);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const activeSession = allSessions.find((s) => s.id === activeSessionId)!;
-
-  const fetchQuota = useCallback(async () => {
-    try {
-      const res = await fetch("/api/user/quota");
-      if (!res.ok) return;
-      const data = await res.json();
-      if (data?.data) {
-        setRemainingCount(data.data.remaining ?? 0);
-        setQuotaTotal(data.data.total ?? 10);
-      }
-    } catch {}
-  }, []);
-
-  useEffect(() => {
-    fetchQuota();
-  }, [fetchQuota]);
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -241,7 +191,7 @@ export default function AIChatPage() {
   // 真实流式 handleSend
   const handleSend = useCallback(
     async (text: string) => {
-      if (!text.trim() || isStreaming || remainingCount === 0) return;
+      if (!text.trim() || isStreaming) return;
 
       const sessionId = activeSessionId;
 
@@ -289,9 +239,6 @@ export default function AIChatPage() {
         });
 
         if (!res.ok) {
-          if (res.status === 429) {
-            setRemainingCount(0);
-          }
           const err = await res.json().catch(() => ({ error: "请求失败" }));
           throw new Error(err.error || `HTTP ${res.status}`);
         }
@@ -346,10 +293,9 @@ export default function AIChatPage() {
       } finally {
         setIsStreaming(false);
         setStreamingMessageId(null);
-        fetchQuota();
       }
     },
-    [activeSessionId, isStreaming, remainingCount, updateMessages, allSessions, fetchQuota]
+    [activeSessionId, isStreaming, updateMessages, allSessions]
   );
 
   const handleNewSession = useCallback(() => {
@@ -395,8 +341,6 @@ export default function AIChatPage() {
             setSidebarOpen(false);
           }}
           onNew={handleNewSession}
-          remainingCount={remainingCount}
-          quotaTotal={quotaTotal}
           onClose={() => setSidebarOpen(false)}
         />
       </aside>
@@ -431,23 +375,10 @@ export default function AIChatPage() {
             </div>
           </div>
 
-          {/* 右侧操作 */}
           <div className="flex items-center gap-2">
             <span className="text-xs text-[var(--muted-foreground)] hidden sm:block">
-              剩余{" "}
-              <span
-                className={
-                  remainingCount > 5 ? "text-green-500 font-bold" : "text-amber-500 font-bold"
-                }
-              >
-                {remainingCount}
-              </span>{" "}
-              次
+              无限对话
             </span>
-            <button className="hidden sm:flex items-center gap-1 h-8 px-3 rounded-xl bg-gradient-to-r from-amber-400 to-orange-400 text-white text-xs font-semibold hover:opacity-90 transition-all">
-              <Crown size={11} />
-              升级
-            </button>
           </div>
         </header>
 
@@ -474,7 +405,6 @@ export default function AIChatPage() {
             onChange={setInputValue}
             onSend={handleSend}
             disabled={isStreaming}
-            remainingCount={remainingCount}
           />
         </div>
       </div>

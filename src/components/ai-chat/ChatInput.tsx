@@ -16,7 +16,7 @@ interface ChatInputProps {
   onChange: (v: string) => void;
   onSend: (text: string) => void;
   disabled?: boolean;
-  remainingCount: number;
+  remainingCount?: number;
 }
 
 export default function ChatInput({
@@ -24,7 +24,6 @@ export default function ChatInput({
   onChange,
   onSend,
   disabled,
-  remainingCount,
 }: ChatInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -58,30 +57,13 @@ export default function ChatInput({
 
   return (
     <div className="border-t border-[var(--border)] bg-[var(--card)] px-4 pt-3 pb-safe-or-4">
-      {/* 次数耗尽横幅 */}
-      {remainingCount === 0 && (
-        <div className="mb-3 rounded-xl bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20 px-4 py-3 flex items-center justify-between">
-          <div>
-            <p className="text-sm font-semibold text-amber-300">
-              今日对话次数已用完
-            </p>
-            <p className="text-xs text-amber-400/70 mt-0.5">
-              升级会员，享受无限次命理咨询
-            </p>
-          </div>
-          <button className="flex-shrink-0 ml-3 px-3 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-semibold hover:opacity-90 transition-all">
-            升级会员
-          </button>
-        </div>
-      )}
-
       {/* 快捷提问 */}
       <div className="flex gap-2 mb-3 overflow-x-auto pb-1 scrollbar-hide">
         {QUICK_PROMPTS.map((q) => (
           <button
             key={q.label}
             onClick={() => handleQuick(q.label)}
-            disabled={disabled || remainingCount === 0}
+            disabled={disabled}
             className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[var(--border)] bg-[var(--background)] text-xs text-[var(--muted-foreground)] hover:border-[var(--primary)]/50 hover:text-[var(--primary)] hover:bg-[var(--primary)]/5 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <span>{q.icon}</span>
@@ -105,17 +87,15 @@ export default function ChatInput({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={handleKeyDown}
-          disabled={disabled || remainingCount === 0}
-          placeholder={
-            remainingCount === 0 ? "次数已用完，升级会员继续咨询…" : "向玄机问命…（Enter 发送，Shift+Enter 换行）"
-          }
+          disabled={disabled}
+          placeholder="向玄机问命…（Enter 发送，Shift+Enter 换行）"
           className="flex-1 bg-transparent resize-none text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none leading-6 max-h-[120px] min-h-[24px]"
         />
 
         {/* 语音按钮 */}
         <button
           type="button"
-          disabled={disabled || remainingCount === 0}
+          disabled={disabled}
           className="flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center text-[var(--muted-foreground)] hover:bg-[var(--muted)] transition-colors disabled:opacity-40"
         >
           <Mic size={16} />
@@ -125,9 +105,9 @@ export default function ChatInput({
         <button
           type="button"
           onClick={handleSend}
-          disabled={isEmpty || disabled || remainingCount === 0}
+          disabled={isEmpty || disabled}
           className={`flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center transition-all ${
-            isEmpty || disabled || remainingCount === 0
+            isEmpty || disabled
               ? "bg-[var(--muted)] text-[var(--muted-foreground)]"
               : "bg-[var(--primary)] text-white hover:opacity-90 active:scale-95 shadow-sm shadow-purple-300/50"
           }`}
@@ -142,15 +122,7 @@ export default function ChatInput({
           AI 可能出错，内容仅供参考
         </p>
         <p className="text-[10px] text-[var(--muted-foreground)]/50">
-          剩余{" "}
-          <span
-            className={
-              remainingCount > 5 ? "text-green-500" : "text-amber-500"
-            }
-          >
-            {remainingCount}
-          </span>{" "}
-          次
+          个人站 · 无次数限制
         </p>
       </div>
     </div>

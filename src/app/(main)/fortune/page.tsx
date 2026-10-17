@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import PersonalFortuneCard from "@/components/fortune/PersonalFortuneCard";
+import type { Almanac } from "@/lib/fortune/almanac";
 import {
   Star,
   Briefcase,
@@ -31,6 +32,7 @@ interface FortuneDimension {
 }
 
 interface FortuneData {
+  almanac?: Almanac;
   date: string;
   ganzhi: string;
   weekday: string;
@@ -253,6 +255,22 @@ export default function FortunePage() {
                     </div>
                   </div>
                 </div>
+
+                {fortune.almanac && (
+                  <div className="rounded-2xl border border-white/10 bg-[#13102a] p-5">
+                    <div className="mb-3 text-xs font-medium tracking-widest text-white/40">今日黄历（万年历计算）</div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-xs text-white/60">
+                      <p><span className="text-[#8B7CF6]">农历：</span>{fortune.almanac.lunarDate}（{fortune.almanac.shengXiao}年）</p>
+                      <p><span className="text-[#8B7CF6]">日纳音：</span>{fortune.almanac.dayNaYin} · 空亡{fortune.almanac.dayXunKong}</p>
+                      <p><span className="text-[#8B7CF6]">建除：</span>{fortune.almanac.jianChu}日 · 值神{fortune.almanac.tianShen}（{fortune.almanac.tianShenLuck}）</p>
+                      <p><span className="text-[#8B7CF6]">冲煞：</span>冲{fortune.almanac.chong} · 煞{fortune.almanac.sha}</p>
+                      <p><span className="text-[#8B7CF6]">方位：</span>喜神{fortune.almanac.xiShen} · 财神{fortune.almanac.caiShen} · 福神{fortune.almanac.fuShen}</p>
+                      <p><span className="text-[#8B7CF6]">星宿：</span>{fortune.almanac.xiu}</p>
+                      <p className="sm:col-span-2"><span className="text-[#8B7CF6]">彭祖百忌：</span>{fortune.almanac.pengZu}</p>
+                      <p className="sm:col-span-2"><span className="text-[#8B7CF6]">节气：</span>{fortune.almanac.jieQi.prev}（{fortune.almanac.jieQi.prevDate}）→ {fortune.almanac.jieQi.next}（{fortune.almanac.jieQi.nextDate}）</p>
+                    </div>
+                  </div>
+                )}
 
                 <div className="flex items-start gap-3 rounded-2xl border border-amber-400/20 bg-amber-400/5 px-5 py-4">
                   <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />

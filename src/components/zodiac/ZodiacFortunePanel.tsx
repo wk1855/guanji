@@ -22,6 +22,13 @@ interface ZodiacFortuneData {
   luckyNumber: number;
   dailyQuote: string;
   periodAdvice: string;
+  sky?: {
+    planets: { name: string; signCn: string; degree: number; retrograde: boolean }[];
+    retrogrades: { planet: string; status: string; start: string; end: string }[];
+    aspects: { a: string; b: string; type: string; orb: number }[];
+    inSign: string[];
+    ruling: string[];
+  };
 }
 
 interface ZodiacFortunePanelProps {
@@ -176,6 +183,36 @@ export default function ZodiacFortunePanel({
           </div>
         </div>
       </div>
+
+      {fortune.sky && (
+        <div className="rounded-2xl border border-white/10 bg-[#13102a] p-5 text-xs text-white/60 space-y-2">
+          <div className="text-xs font-medium tracking-widest text-white/40">今日真实星象（天文历表计算）</div>
+          <p>
+            <span className="text-[#8B7CF6]">守护星：</span>
+            {fortune.sky.ruling.join("、") || "—"}
+            <span className="mx-2 text-white/20">|</span>
+            <span className="text-[#8B7CF6]">本星座内：</span>
+            {fortune.sky.inSign.join("、") || "无行星"}
+          </p>
+          {fortune.sky.retrogrades.length > 0 && (
+            <p>
+              <span className="text-[#8B7CF6]">逆行：</span>
+              {fortune.sky.retrogrades
+                .map((r) => (r.status === "逆行中" ? `${r.planet}逆行中（至 ${r.end.slice(5)}）` : `${r.planet} ${r.start.slice(5)} 起逆行（至 ${r.end.slice(5)}）`))
+                .join("；")}
+            </p>
+          )}
+          {fortune.sky.aspects.length > 0 && (
+            <p>
+              <span className="text-[#8B7CF6]">主要相位：</span>
+              {fortune.sky.aspects.map((a) => `${a.a}${a.type}${a.b}（${a.orb}°）`).join("；")}
+            </p>
+          )}
+          <p className="text-white/40">
+            {fortune.sky.planets.map((p) => `${p.name}${p.signCn.replace("座", "")}${p.degree}°${p.retrograde ? "℞" : ""}`).join(" · ")}
+          </p>
+        </div>
+      )}
 
       {/* 四维运势卡片 */}
       <div>

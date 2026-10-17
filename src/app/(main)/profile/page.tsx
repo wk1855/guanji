@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { User, Trash2, Loader2, ChevronRight, ChevronDown, UserCheck, Check } from "lucide-react";
 import { useSession } from "next-auth/react";
+import AiLogsPanel from "@/components/profile/AiLogsPanel";
 
 interface ProfileData {
   name?: string;
@@ -60,11 +61,12 @@ interface ChatSessionRecord {
   last_message: { role: string; content: string; created_at: string } | null;
 }
 
-type Tab = "bazi" | "chat" | "mbti";
+type Tab = "bazi" | "chat" | "mbti" | "ai";
 const TABS: { key: Tab; label: string }[] = [
   { key: "bazi", label: "八字" },
   { key: "chat", label: "对话" },
   { key: "mbti", label: "MBTI" },
+  { key: "ai", label: "AI 调用记录" },
 ];
 
 const pillar = (p: PillarJson | null) => (p?.tianGan && p?.diZhi ? `${p.tianGan}${p.diZhi}` : "--");
@@ -116,7 +118,7 @@ export default function ProfilePage() {
 
   useEffect(() => {
     const t = new URLSearchParams(window.location.search).get("tab");
-    if (t === "chat" || t === "mbti" || t === "bazi") setTab(t);
+    if (t === "chat" || t === "mbti" || t === "bazi" || t === "ai") setTab(t);
   }, []);
 
   const switchTab = (t: Tab) => {
@@ -307,14 +309,14 @@ export default function ProfilePage() {
       </div>
 
       {/* 历史记录 */}
-      <div className="flex gap-1 rounded-xl bg-[var(--muted)] p-1 w-fit mb-4" role="tablist">
+      <div className="flex flex-wrap gap-1 rounded-xl bg-[var(--muted)] p-1 w-fit max-w-full mb-4" role="tablist">
         {TABS.map(({ key, label }) => (
           <button
             key={key}
             role="tab"
             aria-selected={tab === key}
             onClick={() => switchTab(key)}
-            className={`h-10 rounded-lg px-5 text-sm font-medium transition-all ${
+            className={`h-10 rounded-lg px-4 sm:px-5 text-sm font-medium transition-all ${
               tab === key ? "text-white" : "text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
             }`}
             style={tab === key ? { background: "var(--primary)" } : undefined}
@@ -491,6 +493,7 @@ export default function ProfilePage() {
           )}
         </div>
       )}
+      {tab === "ai" && <AiLogsPanel />}
     </div>
   );
 }

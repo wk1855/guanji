@@ -524,3 +524,23 @@ ALTER TABLE public.ai_usage_logs
 ALTER TABLE public.ai_usage_logs
   ADD CONSTRAINT ai_usage_logs_api_type_check
   CHECK (api_type IN ('bazi', 'fortune', 'chat', 'mbti', 'zodiac', 'match'));
+
+-- ----------------------------------------------------------------
+-- 安全加固：SECURITY DEFINER 函数仅允许服务端（service_role）调用
+-- 防止持有 anon key 的任何人通过 /rest/v1/rpc 直接调用
+-- ----------------------------------------------------------------
+REVOKE EXECUTE ON FUNCTION
+  public.get_or_create_user(text, text, text, text, text),
+  public.decrement_ai_chat_remaining(uuid),
+  public.increment_ai_chat_remaining(uuid),
+  public.reset_daily_ai_quota(),
+  public.upgrade_membership(uuid, text, timestamptz, int)
+FROM PUBLIC, anon, authenticated;
+
+GRANT EXECUTE ON FUNCTION
+  public.get_or_create_user(text, text, text, text, text),
+  public.decrement_ai_chat_remaining(uuid),
+  public.increment_ai_chat_remaining(uuid),
+  public.reset_daily_ai_quota(),
+  public.upgrade_membership(uuid, text, timestamptz, int)
+TO service_role;

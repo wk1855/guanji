@@ -20,7 +20,8 @@ export const NAV_LINKS = [
   { href: "/match", label: "缘分配对", icon: "Heart" },
   { href: "/ai-chat", label: "AI对话", icon: "MessageCircle" },
   { href: "/profile", label: "个人档案", icon: "User" },
-  { href: "/membership", label: "会员", icon: "Crown" },
+  // 单账号个人站，不再展示会员入口
+  // { href: "/membership", label: "会员", icon: "Crown" },
 ] as const;
 
 // 12星座

@@ -1,16 +1,15 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { getUserById } from "@/lib/db/users";
 import { ok, unauthorized, serverError } from "@/lib/utils/response";
+import { requireUser } from "@/lib/require-session";
+
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) return unauthorized();
+    const auth = await requireUser();
+    if (auth.error) return auth.error;
 
-    const userId = (session.user as any).id as string;
-    const user = await getUserById(userId);
+    const user = await getUserById(auth.user.id);
     if (!user) return unauthorized("用户不存在");
 
     return ok({
@@ -18,10 +17,8 @@ export async function GET() {
       email: user.email,
       name: user.name,
       avatarUrl: user.avatar_url,
-      tier: user.tier,
-      aiChatRemaining: user.ai_chat_remaining,
-      aiChatTotal: user.ai_chat_total,
-      membershipExpiresAt: user.membership_expires_at,
+      tier: "pro",
+      unlimited: true,
       createdAt: user.created_at,
     });
   } catch (err) {

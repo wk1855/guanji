@@ -76,8 +76,7 @@ const FEATURE_CARDS: FeatureCard[] = [
     title: "AI命理师",
     desc: "双轨大模型深度解读，命理分析与情绪疏导并行，温和陪伴每一步",
     ctaLabel: "开始对话",
-    ctaHref: "/chat",
-    badge: "新用户赠5次",
+    ctaHref: "/ai-chat",
     gradient: "from-[#7C3AED] to-[#C084FC]",
   },
   {
@@ -339,7 +338,7 @@ export default function HomePage() {
               className="group inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#5749F4] to-[#7C3AED] px-8 py-4 text-base font-semibold text-white shadow-2xl shadow-[#5749F4]/30 transition-all duration-300 hover:scale-105 hover:shadow-[#5749F4]/50"
             >
               <Sparkles className="h-4 w-4 transition-transform duration-300 group-hover:rotate-12" />
-              立即排盘 · 免费体验
+              立即排盘
             </Link>
             <Link
               href="#features"
@@ -579,13 +578,13 @@ export default function HomePage() {
             加入12万+用户，用东方智慧点亮生活方向
           </p>
           <Link
-            href="/login"
+            href="/bazi"
             className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#5749F4] to-[#7C3AED] px-10 py-4 text-base font-semibold text-white shadow-2xl shadow-[#5749F4]/30 transition-all duration-300 hover:scale-105 hover:shadow-[#5749F4]/50"
           >
             <Sparkles className="h-4 w-4" />
-            免费注册，立即体验
+            开始排盘
           </Link>
-          <p className="mt-5 text-xs text-white/25">无需信用卡 · 随时可注销 · 数据严格保密</p>
+          <p className="mt-5 text-xs text-white/25">个人使用 · 内容仅供娱乐参考</p>
         </div>
       </section>
     </main>

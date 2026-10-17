@@ -2,7 +2,9 @@
 
 > 观己知命，顺势而为
 
-融合东方命理哲学与现代心理科学的 AI 占卜 SaaS 平台，基于 DeepSeek 大模型提供八字排盘、每日运势、MBTI 测试、星座罗盘和 AI 命理师对话服务。
+融合东方命理哲学与现代心理科学的 AI 占卜应用。本 fork 面向**站长个人全功能使用**：单一用户名密码、全站需登录、无公开注册、无 OAuth、无会员配额。
+
+部署步骤见 [DEPLOY.md](./DEPLOY.md)，环境变量见 [.env.example](./.env.example)。
 
 ![观己界面预览](./public/page.png)
 
@@ -33,15 +35,14 @@
 | MBTI 测试 | `/mbti`       | 60 道题测出 16 种人格类型，并与五行体系融合解读                      |
 | 星座罗盘  | `/zodiac`     | 12 星座每日运势，星座与五行互相印证                                  |
 | AI 命理师 | `/ai-chat`    | 与 AI 命理师「玄机」深度对话，结合个人命盘做个性化解读               |
-| 个人档案  | `/profile`    | 管理账号信息、查看八字历史、追踪 AI 对话配额                         |
-| 会员中心  | `/membership` | 订阅基础版或专业版，解锁更多对话次数和高级功能                       |
+| 个人档案  | `/profile`    | 查看站长账号信息                                                     |
 
 ### 核心技术亮点
 
-- **AI 驱动**：所有命理内容均由 DeepSeek API 实时生成，非静态数据
+- **AI 驱动**：解读由 DeepSeek 当前官方模型（默认 `deepseek-flash`）生成
+- **八字硬计算**：四柱由 `lunar-javascript`（节气 + 可选真太阳时）排出，AI 只负责解读
 - **智能缓存**：运势类内容全局缓存（TTL 2 天），避免重复 AI 调用
-- **配额管理**：数据库行锁原子性扣减对话次数，防并发超扣，调用失败自动退款
-- **多端认证**：支持 GitHub OAuth、Google OAuth 和邮箱密码注册/登录
+- **单账号鉴权**：`OWNER_USERNAME` + 密码，首次登录自动 upsert 为 pro
 - **合规内容**：违禁词过滤、合规声明底栏、AI 输出末尾自动追加娱乐免责声明
 
 ---
@@ -56,7 +57,8 @@
 | **状态管理** | [Zustand](https://github.com/pmndrs/zustand) + localStorage 持久化 |
 | **认证**     | [NextAuth.js v4](https://next-auth.js.org/)                        |
 | **数据库**   | [Supabase](https://supabase.com/) (PostgreSQL + RLS)               |
-| **AI**       | [DeepSeek API](https://www.deepseek.com/) (`deepseek-chat` 模型)   |
+| **AI**       | [DeepSeek API](https://api-docs.deepseek.com/)（默认 `deepseek-flash`） |
+| **历法**     | [lunar-javascript](https://github.com/6tail/lunar-javascript)      |
 | **图标**     | [Lucide React](https://lucide.dev/)                                |
 | **部署**     | [Vercel](https://vercel.com/)                                      |
 
@@ -120,10 +122,9 @@ supabase/
 ### 前置要求
 
 - Node.js 18+
-- npm / yarn / pnpm
+- npm
 - Supabase 项目（[免费创建](https://app.supabase.com/)）
 - DeepSeek API Key（[申请](https://platform.deepseek.com/)）
-- （可选）GitHub / Google OAuth App
 
 ### 安装
 
@@ -139,10 +140,10 @@ npm install
 ### 配置环境变量
 
 ```bash
-cp .env.local.example .env.local
+cp .env.example .env.local
 ```
 
-按照下方「[环境变量](#环境变量)」说明填写 `.env.local`。
+完整变量说明见 `.env.example` 与 [DEPLOY.md](./DEPLOY.md)。
 
 ### 初始化数据库
 
@@ -166,29 +167,9 @@ npm run dev
 
 ## 环境变量
 
-```bash
-# ── NextAuth ──────────────────────────────────────────────────────
-NEXTAUTH_URL=http://localhost:3000
-NEXTAUTH_SECRET=                    # 随机字符串，建议 32+ 字符
+见 [`.env.example`](./.env.example)。必填：`NEXTAUTH_URL`、`NEXTAUTH_SECRET`、`OWNER_USERNAME`、`OWNER_PASSWORD`（或 `OWNER_PASSWORD_HASH`）、Supabase 三项、`DEEPSEEK_API_KEY`。
 
-# ── Supabase ──────────────────────────────────────────────────────
-NEXT_PUBLIC_SUPABASE_URL=           # https://xxx.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=      # 匿名公钥（可公开）
-SUPABASE_SERVICE_ROLE_KEY=          # 服务角色密钥（仅服务端，勿泄露）
-
-# ── OAuth（可选，至少配置一项）──────────────────────────────────────
-GOOGLE_CLIENT_ID=
-GOOGLE_CLIENT_SECRET=
-GITHUB_CLIENT_ID=
-GITHUB_CLIENT_SECRET=
-
-# ── DeepSeek AI ───────────────────────────────────────────────────
-DEEPSEEK_API_KEY=
-DEEPSEEK_API_URL=https://api.deepseek.com/chat/completions
-DEEPSEEK_MODEL=deepseek-chat
-```
-
-> **安全提示**：`SUPABASE_SERVICE_ROLE_KEY` 拥有绕过 RLS 的全权限，只能在服务端使用，**严禁**暴露到客户端或版本控制。
+默认模型为 `deepseek-flash`。已移除 GitHub / Google OAuth 变量。
 
 ---
 
@@ -231,12 +212,7 @@ reset_daily_ai_quota()
 upgrade_membership(user_id, tier, expires_at, chat_limit)
 ```
 
-### 每日配额重置
-
-`reset_daily_ai_quota()` 需通过定时任务每日 0 点触发。推荐方式：
-
-- **Supabase Cron**（`pg_cron` 扩展）：在 Dashboard → Database → Extensions 启用后配置
-- **Vercel Cron Jobs**：在 `vercel.json` 中配置定时调用内部 API
+站长账号由应用在首次登录时自动创建为 `pro`，**不必**手工 SQL，也**不必**配置每日配额 Cron。
 
 ---
 
@@ -310,39 +286,22 @@ Authorization: 需要登录
 
 ---
 
-## 会员体系
+## 账号模型
 
-| 等级   | 每日 AI 对话次数 | 价格      |
-| ------ | ---------------- | --------- |
-| 免费版 | 3 次             | 免费      |
-| 基础版 | 30 次            | ¥19.90/月 |
-| 专业版 | 无限             | ¥49.90/月 |
-
-专业版用户在配额检查时直接返回成功，不进行实际扣减。
-
-会员升级通过 `upgrade_membership()` 数据库函数完成，配合支付回调触发。
+仅 `OWNER_USERNAME` 可登录，权限视为专业版、无次数限制。公开注册与 OAuth 已关闭。支付相关表仍保留在 schema 中但不阻断使用。
 
 ---
 
 ## 部署
 
-### Vercel（推荐）
-
-1. 将项目导入 [Vercel](https://vercel.com/)
-2. 在 **Settings → Environment Variables** 中添加所有环境变量
-3. 将 `NEXTAUTH_URL` 改为生产域名
-4. 部署完成后，在 Supabase → **Authentication → URL Configuration** 中添加生产域名到允许列表
+完整步骤（Supabase schema、DeepSeek、Vercel 环境变量、站长账号、Vercel 密码保护）见 **[DEPLOY.md](./DEPLOY.md)**。
 
 ```bash
-# 本地构建验证
+npm run lint
+npm run typecheck
+npm test
 npm run build
 ```
-
-### 注意事项
-
-- `SUPABASE_SERVICE_ROLE_KEY` 只在服务端 API Route 中使用，Next.js 会自动防止其泄露到客户端（未加 `NEXT_PUBLIC_` 前缀）
-- 生产环境务必更换 `NEXTAUTH_SECRET` 为强随机字符串
-- 建议在 Supabase 中配置 `pg_cron` 定时任务，每日 UTC 16:00（北京时间 0:00）执行 `reset_daily_ai_quota()`
 
 ---
 

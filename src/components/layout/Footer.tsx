@@ -4,7 +4,7 @@ import { Shield, BookOpen, Heart } from "lucide-react";
 const FOOTER_LINKS = {
   产品功能: [
     { label: "八字排盘", href: "/bazi" },
-    { label: "AI命理师", href: "/chat" },
+    { label: "AI命理师", href: "/ai-chat" },
     { label: "每日运势", href: "/fortune" },
     { label: "测试中心", href: "/quiz" },
   ],

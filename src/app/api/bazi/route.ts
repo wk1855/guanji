@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { saveBaziChart } from "@/lib/db/bazi";
+import { chatCompletion, parseJsonFromModel } from "@/lib/deepseek";
+import { computeBaziChart, formatChartForPrompt } from "@/lib/bazi/chart";
+import { enforceAiRateLimit, requireUser } from "@/lib/require-session";
 
-const SYSTEM_PROMPT = `你是「观己」平台的AI八字排盘大师。精通八字命理、天干地支、五行生克。
-用户会提供出生信息，你需要根据其出生年月日时，精确排出四柱八字并给出解读。
+const SYSTEM_PROMPT = `你是「观己」平台的AI八字解读师。精通八字命理、天干地支、五行生克。
+用户会提供已经由万年历（含节气、真太阳时）精确排出的四柱命盘。
+你只负责解读，严禁改动、重排或质疑四柱、日主、五行占比数字。
 
 请严格按以下JSON格式返回，不要包含任何其他内容，只返回纯JSON：
 
@@ -23,15 +25,19 @@ const SYSTEM_PROMPT = `你是「观己」平台的AI八字排盘大师。精通�
 }
 
 要求：
-1. 天干地支必须根据用户出生信息精确推算，遵循万年历规则
-2. 五行占比数字之和为100，代表百分比
-3. wuXing字段填该柱天干对应的五行（甲乙-木，丙丁-火，戊己-土，庚辛-金，壬癸-水）
-4. 解读温和正向，避免制造焦虑
-5. 引用正统命理典籍
-6. 只返回JSON，不要markdown代码块`;
+1. yearPillar/monthPillar/dayPillar/hourPillar/dayMaster/wuXingBalance 必须原样回写用户提供的排盘结果，一个字都不能改
+2. wuXing 填该柱天干对应的五行
+3. 解读温和正向，避免制造焦虑
+4. 引用正统命理典籍
+5. 只返回JSON，不要markdown代码块`;
 
 export async function POST(req: NextRequest) {
   try {
+    const auth = await requireUser();
+    if (auth.error) return auth.error;
+    const limited = enforceAiRateLimit(auth.user.id);
+    if (limited) return limited;
+
     const body = await req.json();
     const { name, gender, birthYear, birthMonth, birthDay, birthHour, birthPlace, isLunar } = body;
 
@@ -39,75 +45,80 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "参数不完整" }, { status: 400 });
     }
 
+    let chart;
+    try {
+      chart = computeBaziChart({
+        birthYear: Number(birthYear),
+        birthMonth: Number(birthMonth),
+        birthDay: Number(birthDay),
+        birthHour: birthHour != null ? Number(birthHour) : 12,
+        isLunar: Boolean(isLunar),
+        birthPlace: birthPlace ?? undefined,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "排盘参数无效";
+      return NextResponse.json({ error: message }, { status: 400 });
+    }
+
     const genderText = gender === "male" ? "男" : "女";
     const calendarType = isLunar ? "农历" : "公历";
-
-    const shichenMap: Record<number, string> = {
-      0: "子时(23:00-01:00)", 2: "丑时(01:00-03:00)", 4: "寅时(03:00-05:00)",
-      6: "卯时(05:00-07:00)", 8: "辰时(07:00-09:00)", 10: "巳时(09:00-11:00)",
-      12: "午时(11:00-13:00)", 14: "未时(13:00-15:00)", 16: "申时(15:00-17:00)",
-      18: "酉时(17:00-19:00)", 20: "戌时(19:00-21:00)", 22: "亥时(21:00-23:00)",
-    };
-    const shichen = shichenMap[birthHour] || `${birthHour}时`;
-
-    const userMsg = `请为以下命主排出八字命盘：
+    const userMsg = `请解读以下命盘（四柱已由系统精确排出，请原样写入 JSON 的四柱字段）：
 姓名：${name}
 性别：${genderText}
-出生日期：${calendarType} ${birthYear}年${birthMonth}月${birthDay}日
-出生时辰：${shichen}
-出生地：${birthPlace}`;
+用户填写的出生日期：${calendarType} ${birthYear}年${birthMonth}月${birthDay}日
+出生地：${birthPlace ?? "未填写"}
 
-    const apiUrl = process.env.DEEPSEEK_API_URL || "https://api.deepseek.com/chat/completions";
-    const apiKey = process.env.DEEPSEEK_API_KEY!;
-    const model = (process.env.DEEPSEEK_MODEL || "deepseek-chat").trim();
+${formatChartForPrompt(chart)}`;
 
-    const res = await fetch(apiUrl, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: userMsg },
-        ],
-        temperature: 0.3,
-        stream: false,
-      }),
+    const { content } = await chatCompletion({
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        { role: "user", content: userMsg },
+      ],
+      json: true,
+      thinking: false,
+      temperature: 0.4,
+      maxTokens: 2048,
     });
 
-    if (!res.ok) {
-      const errText = await res.text().catch(() => "unknown");
-      console.error("[bazi API] upstream error:", res.status, errText);
-      return NextResponse.json({ error: "AI 服务暂不可用" }, { status: 502 });
-    }
+    const aiResult = parseJsonFromModel<{
+      basicReading?: string[];
+      yearPillar?: unknown;
+      monthPillar?: unknown;
+      dayPillar?: unknown;
+      hourPillar?: unknown;
+      dayMaster?: unknown;
+      wuXingBalance?: unknown;
+    }>(content);
 
-    const data = await res.json();
-    const content = data.choices?.[0]?.message?.content ?? "";
-    const cleaned = content.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
-    const result = JSON.parse(cleaned);
+    const result = {
+      yearPillar: chart.yearPillar,
+      monthPillar: chart.monthPillar,
+      dayPillar: chart.dayPillar,
+      hourPillar: chart.hourPillar,
+      dayMaster: chart.dayMaster,
+      wuXingBalance: chart.wuXingBalance,
+      basicReading: Array.isArray(aiResult.basicReading) ? aiResult.basicReading : [],
+      meta: {
+        solar: chart.solar,
+        lunar: chart.lunar,
+        trueSolar: chart.trueSolar,
+        nayin: chart.nayin,
+      },
+    };
 
-    // 异步保存到数据库（不阻塞响应）
-    const session = await getServerSession(authOptions);
-    if (session?.user) {
-      const userId = (session.user as any).id;
-      if (userId) {
-        saveBaziChart({
-          userId,
-          name,
-          gender: gender ?? "male",
-          birthYear: Number(birthYear),
-          birthMonth: Number(birthMonth),
-          birthDay: Number(birthDay),
-          birthHour: birthHour != null ? Number(birthHour) : undefined,
-          birthPlace: birthPlace ?? undefined,
-          isLunar: Boolean(isLunar),
-          resultJson: result,
-        }).catch((err) => console.error("[bazi API] save chart error:", err));
-      }
-    }
+    saveBaziChart({
+      userId: auth.user.id,
+      name,
+      gender: gender ?? "male",
+      birthYear: Number(birthYear),
+      birthMonth: Number(birthMonth),
+      birthDay: Number(birthDay),
+      birthHour: birthHour != null ? Number(birthHour) : undefined,
+      birthPlace: birthPlace ?? undefined,
+      isLunar: Boolean(isLunar),
+      resultJson: result,
+    }).catch((err) => console.error("[bazi API] save chart error:", err));
 
     return NextResponse.json(result);
   } catch (err) {

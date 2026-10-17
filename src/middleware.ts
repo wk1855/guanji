@@ -2,27 +2,33 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 
-const PUBLIC_PATHS = ["/", "/login", "/api", "/_next", "/favicon.ico", "/mbti", "/zodiac", "/fortune", "/bazi"];
+function isPublicPath(pathname: string): boolean {
+  if (pathname === "/login") return true;
+  if (pathname.startsWith("/api/auth")) return true;
+  if (pathname.startsWith("/_next")) return true;
+  if (pathname === "/favicon.ico" || pathname === "/icon.jpg" || pathname === "/page.png") return true;
+  if (pathname.match(/\.(ico|png|jpg|jpeg|svg|gif|webp|css|js|woff2?|txt|xml)$/)) return true;
+  return false;
+}
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-
-  if (PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"))) {
-    return NextResponse.next();
-  }
-
-  if (pathname.match(/\.(ico|png|jpg|jpeg|svg|css|js|woff2?)$/)) {
+  if (isPublicPath(pathname)) {
     return NextResponse.next();
   }
 
   const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
-  if (!token) {
-    const loginUrl = new URL("/login", request.url);
-    loginUrl.searchParams.set("callbackUrl", pathname);
-    return NextResponse.redirect(loginUrl);
+  if (token) {
+    return NextResponse.next();
   }
 
-  return NextResponse.next();
+  if (pathname.startsWith("/api/")) {
+    return NextResponse.json({ error: "请先登录" }, { status: 401 });
+  }
+
+  const loginUrl = new URL("/login", request.url);
+  loginUrl.searchParams.set("callbackUrl", pathname);
+  return NextResponse.redirect(loginUrl);
 }
 
 export const config = {

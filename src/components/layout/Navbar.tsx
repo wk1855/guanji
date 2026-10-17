@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Menu, X, User, LogOut, Sparkles } from "lucide-react";
+import { Menu, X, User, LogOut } from "lucide-react";
 import { useSession, signOut } from "next-auth/react";
 
 interface NavItem {
@@ -63,7 +63,10 @@ export default function Navbar() {
         <div className="flex items-center gap-3">
           {isLoggedIn ? (
             <div className="hidden md:flex items-center gap-3">
-              <div className="flex items-center gap-2 rounded-full bg-white/5 px-3 py-1.5 border border-white/10">
+              <Link
+                href="/profile"
+                className="flex items-center gap-2 rounded-full bg-white/5 px-3 py-1.5 border border-white/10 hover:bg-white/10 transition-colors"
+              >
                 {userAvatar ? (
                   <img src={userAvatar} alt={userName} className="h-6 w-6 rounded-full" />
                 ) : (
@@ -72,9 +75,9 @@ export default function Navbar() {
                   </div>
                 )}
                 <span className="text-sm text-white/80">{userName}</span>
-              </div>
+              </Link>
               <button
-                onClick={() => signOut({ callbackUrl: "/" })}
+                onClick={() => signOut({ callbackUrl: "/login" })}
                 className="flex items-center gap-1.5 text-sm text-white/50 hover:text-white/80 transition-colors"
               >
                 <LogOut className="h-4 w-4" />
@@ -84,16 +87,9 @@ export default function Navbar() {
             <div className="hidden md:flex items-center gap-2">
               <Link
                 href="/login"
-                className="px-4 py-1.5 text-sm text-white/70 hover:text-white transition-colors rounded-lg hover:bg-white/5"
-              >
-                登录
-              </Link>
-              <Link
-                href="/login"
                 className="flex items-center gap-1.5 px-4 py-1.5 text-sm font-medium text-white rounded-full bg-gradient-to-r from-[#5749F4] to-[#7C3AED] hover:opacity-90 transition-opacity shadow-lg shadow-[#5749F4]/25"
               >
-                <Sparkles className="h-3.5 w-3.5" />
-                免费体验
+                登录
               </Link>
             </div>
           )}
@@ -125,21 +121,30 @@ export default function Navbar() {
               </li>
             ))}
           </ul>
-          {!isLoggedIn && (
+          {isLoggedIn ? (
             <div className="flex flex-col gap-2 pt-3 border-t border-white/10">
               <Link
-                href="/login"
+                href="/profile"
                 className="block w-full text-center py-2.5 text-sm text-white/70 border border-white/10 rounded-xl hover:bg-white/5 transition-colors"
                 onClick={() => setMenuOpen(false)}
               >
-                登录
+                个人档案
               </Link>
+              <button
+                onClick={() => signOut({ callbackUrl: "/login" })}
+                className="block w-full text-center py-2.5 text-sm font-medium text-white rounded-xl bg-white/10"
+              >
+                退出登录
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2 pt-3 border-t border-white/10">
               <Link
                 href="/login"
                 className="block w-full text-center py-2.5 text-sm font-medium text-white rounded-xl bg-gradient-to-r from-[#5749F4] to-[#7C3AED]"
                 onClick={() => setMenuOpen(false)}
               >
-                免费体验
+                登录
               </Link>
             </div>
           )}

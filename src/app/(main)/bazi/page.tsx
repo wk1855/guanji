@@ -1,15 +1,11 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { useSession } from "next-auth/react";
 import BaziForm from "@/components/bazi/BaziForm";
 import BaziChart from "@/components/bazi/BaziChart";
 import PosterPreviewModal from "@/components/bazi/PosterPreviewModal";
 import {
   Share2,
-  BookmarkPlus,
-  Lock,
-  ChevronRight,
   Sparkles,
   Loader2,
   AlertCircle,
@@ -131,8 +127,6 @@ function WuXingSummary({ balance }: { balance: Record<string, number> }) {
 }
 
 export default function BaziPage() {
-  const { data: session } = useSession();
-  const isLoggedIn = !!session?.user;
   const [step, setStep] = useState<"form" | "result">("form");
   const [baziInfo, setBaziInfo] = useState<BaziInfo | null>(null);
   const [result, setResult] = useState<BaziResult | null>(null);
@@ -272,47 +266,6 @@ export default function BaziPage() {
               <ReadingSection readings={result.basicReading} />
             </div>
 
-            <div className="rounded-2xl bg-gradient-to-br from-[var(--primary)] to-indigo-500 p-px">
-              <div className="rounded-[calc(var(--radius-m)-1px)] bg-gradient-to-br from-purple-950/40 to-indigo-950/40 p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <Lock size={14} className="text-[var(--primary)]" />
-                      <span className="text-sm font-bold text-[var(--foreground)]">
-                        深度报告
-                      </span>
-                    </div>
-                    <p className="text-xs text-[var(--muted-foreground)]">
-                      含年运 / 事业 / 婚恋 / 财富全面解析
-                    </p>
-                  </div>
-                  <span className="text-2xl font-bold text-[var(--primary)]">
-                    ¥39
-                  </span>
-                </div>
-                <div className="grid grid-cols-2 gap-2 mb-5">
-                  {[
-                    "流年大运详批",
-                    "事业财运走势",
-                    "婚恋缘分解析",
-                    "用神喜忌推断",
-                  ].map((item) => (
-                    <div
-                      key={item}
-                      className="flex items-center gap-1.5 text-xs text-[var(--muted-foreground)]"
-                    >
-                      <span className="w-1 h-1 rounded-full bg-[var(--primary)]" />
-                      {item}
-                    </div>
-                  ))}
-                </div>
-                <button className="w-full h-11 rounded-xl bg-[var(--primary)] text-white text-sm font-semibold flex items-center justify-center gap-2 hover:opacity-90 active:scale-[0.98] transition-all">
-                  解锁完整深度报告（¥39）
-                  <ChevronRight size={16} />
-                </button>
-              </div>
-            </div>
-
             <div className="flex gap-3">
               <button
                 onClick={() => setPosterOpen(true)}
@@ -322,17 +275,8 @@ export default function BaziPage() {
                 生成命盘海报
               </button>
               <div className="flex-1 h-11 rounded-xl border border-[var(--border)] bg-[var(--card)] text-sm flex items-center justify-center gap-2">
-                {isLoggedIn ? (
-                  <>
-                    <Check size={15} className="text-green-400" />
-                    <span className="text-green-400">已自动保存到档案</span>
-                  </>
-                ) : (
-                  <>
-                    <BookmarkPlus size={15} className="text-[var(--muted-foreground)]" />
-                    <span className="text-[var(--muted-foreground)]">登录后自动保存</span>
-                  </>
-                )}
+                <Check size={15} className="text-green-400" />
+                <span className="text-green-400">已自动保存到档案</span>
               </div>
             </div>
 

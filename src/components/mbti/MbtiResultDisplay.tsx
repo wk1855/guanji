@@ -51,7 +51,7 @@ export default function MbtiResultDisplay({ result }: MbtiResultDisplayProps) {
           {letters.map((letter, i) => (
             <span
               key={i}
-              className="w-14 h-14 rounded-xl bg-[#5749F4]/20 border border-[#5749F4]/30 flex items-center justify-center text-2xl font-black text-[#5749F4]"
+              className="w-14 h-14 rounded-xl bg-[#5749F4]/20 border border-[#5749F4]/30 flex items-center justify-center text-2xl font-black text-[#a99ffb]"
             >
               {letter}
             </span>
@@ -76,7 +76,7 @@ export default function MbtiResultDisplay({ result }: MbtiResultDisplayProps) {
       {/* 四维度进度条 */}
       <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5">
         <h3 className="text-sm font-semibold text-[var(--foreground)] mb-4 flex items-center gap-1.5">
-          <span className="text-[#5749F4]">◎</span>
+          <span className="text-[#a99ffb]">◎</span>
           维度分析
         </h3>
         <div className="space-y-4">
@@ -88,10 +88,10 @@ export default function MbtiResultDisplay({ result }: MbtiResultDisplayProps) {
             return (
               <div key={left + right}>
                 <div className="flex justify-between text-xs text-[var(--muted-foreground)] mb-1.5">
-                  <span className={dominantLeft ? "text-[#5749F4] font-semibold" : ""}>
+                  <span className={dominantLeft ? "text-[#a99ffb] font-semibold" : ""}>
                     {leftLabel}（{left}）{leftScore}%
                   </span>
-                  <span className={!dominantLeft ? "text-[#5749F4] font-semibold" : ""}>
+                  <span className={!dominantLeft ? "text-[#a99ffb] font-semibold" : ""}>
                     {rightScore}%（{right}）{rightLabel}
                   </span>
                 </div>
@@ -119,7 +119,7 @@ export default function MbtiResultDisplay({ result }: MbtiResultDisplayProps) {
             {keyTraits.map((trait: string, i: number) => (
               <span
                 key={i}
-                className="px-3 py-1.5 rounded-full text-sm bg-[#5749F4]/15 border border-[#5749F4]/20 text-[#5749F4]"
+                className="px-3 py-1.5 rounded-full text-sm bg-[#5749F4]/15 border border-[#5749F4]/20 text-[#a99ffb]"
               >
                 {trait}
               </span>
@@ -132,7 +132,7 @@ export default function MbtiResultDisplay({ result }: MbtiResultDisplayProps) {
       {aiReading && (
         <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5">
           <h3 className="text-sm font-semibold text-[var(--foreground)] mb-3 flex items-center gap-1.5">
-            <span className="text-[#5749F4]">☯</span>
+            <span className="text-[#a99ffb]">☯</span>
             AI 性格解读
           </h3>
           <p className="text-sm leading-7 text-[var(--muted-foreground)]">{aiReading}</p>

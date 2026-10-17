@@ -73,7 +73,7 @@ const DIMENSION_ICONS: Record<string, React.ElementType> = {
 };
 
 const DIMENSION_COLORS: Record<string, string> = {
-  事业运: "from-[#5749F4] to-[#818CF8]",
+  事业运: "from-[var(--primary)] to-[#818CF8]",
   感情运: "from-[#EC4899] to-[#F472B6]",
   财运: "from-[#D97706] to-[#FBBF24]",
   健康运: "from-[#10B981] to-[#34D399]",
@@ -91,7 +91,7 @@ function LoadingSpinner() {
     <div className="flex flex-col items-center justify-center py-20 gap-4">
       {/* 旋转星象动画 */}
       <div className="relative h-16 w-16">
-        <div className="absolute inset-0 rounded-full border-2 border-[#5749F4]/30 animate-spin border-t-[#5749F4]" />
+        <div className="absolute inset-0 rounded-full border-2 border-[var(--primary)]/30 animate-spin border-t-[#5749F4]" />
         <div className="absolute inset-3 flex items-center justify-center">
           <Sparkles className="h-6 w-6 text-[#8B7CF6] animate-pulse" />
         </div>
@@ -109,7 +109,7 @@ export default function ZodiacFortunePanel({
 }: ZodiacFortunePanelProps) {
   if (loading) {
     return (
-      <div className="rounded-3xl border border-white/10 bg-[#13102a]/60 backdrop-blur-sm">
+      <div className="rounded-3xl border border-white/10 bg-[var(--card)]/60 backdrop-blur-sm">
         <LoadingSpinner />
       </div>
     );
@@ -128,8 +128,8 @@ export default function ZodiacFortunePanel({
   return (
     <div className="space-y-4">
       {/* 星座基础信息 + 总体运势 */}
-      <div className="relative rounded-3xl border border-white/10 bg-gradient-to-br from-[#16123a] to-[#0d0b1e] p-6 overflow-hidden">
-        <div className="absolute top-0 right-0 h-40 w-40 rounded-full bg-[#5749F4]/10 blur-2xl pointer-events-none" />
+      <div className="relative rounded-3xl border border-white/10 bg-gradient-to-br from-[#16123a] to-[var(--background)] p-6 overflow-hidden">
+        <div className="absolute top-0 right-0 h-40 w-40 rounded-full bg-[var(--primary)]/10 blur-2xl pointer-events-none" />
         <div className="relative z-10">
           {/* 星座标题行 */}
           <div className="mb-4 flex items-center gap-3">
@@ -143,15 +143,15 @@ export default function ZodiacFortunePanel({
               <h2 className="text-xl font-semibold text-white">
                 {zodiacInfo.signCn}
               </h2>
-              <div className="mt-0.5 flex items-center gap-2 text-xs text-white/40">
+              <div className="mt-0.5 flex items-center gap-2 text-xs text-white/60">
                 <span
                   className={`font-medium ${ELEMENT_COLORS[zodiacInfo.element] ?? "text-white/60"}`}
                 >
                   {zodiacInfo.element}象
                 </span>
-                <span className="text-white/20">·</span>
+                <span className="text-white/60">·</span>
                 <span>守护星：{zodiacInfo.rulingPlanet}</span>
-                <span className="text-white/20">·</span>
+                <span className="text-white/60">·</span>
                 <span>{zodiacInfo.dateRange}</span>
               </div>
             </div>
@@ -160,7 +160,7 @@ export default function ZodiacFortunePanel({
           {/* 总体星级 */}
           <div className="mb-3 flex items-center gap-3">
             <StarRating count={fortune.overallStars} size="md" />
-            <span className="text-xs text-white/40">
+            <span className="text-xs text-white/60">
               今日综合运势 {fortune.overallStars}/5
             </span>
           </div>
@@ -185,12 +185,12 @@ export default function ZodiacFortunePanel({
       </div>
 
       {fortune.sky && (
-        <div className="rounded-2xl border border-white/10 bg-[#13102a] p-5 text-xs text-white/60 space-y-2">
-          <div className="text-xs font-medium tracking-widest text-white/40">今日真实星象（天文历表计算）</div>
+        <div className="rounded-2xl border border-white/10 bg-[var(--card)] p-5 text-xs text-white/60 space-y-2">
+          <div className="text-xs font-medium tracking-widest text-white/60">今日真实星象（天文历表计算）</div>
           <p>
             <span className="text-[#8B7CF6]">守护星：</span>
             {fortune.sky.ruling.join("、") || "—"}
-            <span className="mx-2 text-white/20">|</span>
+            <span className="mx-2 text-white/60">|</span>
             <span className="text-[#8B7CF6]">本星座内：</span>
             {fortune.sky.inSign.join("、") || "无行星"}
           </p>
@@ -208,7 +208,7 @@ export default function ZodiacFortunePanel({
               {fortune.sky.aspects.map((a) => `${a.a}${a.type}${a.b}（${a.orb}°）`).join("；")}
             </p>
           )}
-          <p className="text-white/40">
+          <p className="text-white/60">
             {fortune.sky.planets.map((p) => `${p.name}${p.signCn.replace("座", "")}${p.degree}°${p.retrograde ? "℞" : ""}`).join(" · ")}
           </p>
         </div>
@@ -216,18 +216,18 @@ export default function ZodiacFortunePanel({
 
       {/* 四维运势卡片 */}
       <div>
-        <div className="mb-3 text-xs font-medium tracking-widest text-white/30 uppercase">
+        <div className="mb-3 text-xs font-medium tracking-widest text-white/60 uppercase">
           四维运势详情
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {fortune.dimensions.map((dim) => {
             const Icon = DIMENSION_ICONS[dim.dimension] || Activity;
             const color =
-              DIMENSION_COLORS[dim.dimension] || "from-[#5749F4] to-[#818CF8]";
+              DIMENSION_COLORS[dim.dimension] || "from-[var(--primary)] to-[#818CF8]";
             return (
               <div
                 key={dim.dimension}
-                className="rounded-2xl border border-white/8 bg-[#13102a] p-5 hover:border-white/15 transition-all duration-300 hover:-translate-y-0.5"
+                className="rounded-2xl border border-white/8 bg-[var(--card)] p-5 hover:border-white/15 transition-all duration-300 hover:-translate-y-0.5"
               >
                 <div className="mb-3 flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
@@ -260,7 +260,7 @@ export default function ZodiacFortunePanel({
       </div>
 
       {/* 幸运信息 + 今日寄语 */}
-      <div className="rounded-3xl border border-[#5749F4]/25 bg-gradient-to-br from-[#1a1540] to-[#13102a] overflow-hidden">
+      <div className="rounded-3xl border border-[var(--primary)]/25 bg-gradient-to-br from-[#1a1540] to-[var(--card)] overflow-hidden">
         <div className="relative p-6 text-center border-b border-white/8">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_0%,rgba(87,73,244,0.12),transparent)] pointer-events-none" />
           <div className="relative z-10">
@@ -270,7 +270,7 @@ export default function ZodiacFortunePanel({
             <p className="mb-5 text-base font-serif font-medium text-white leading-relaxed">
               「{fortune.dailyQuote}」
             </p>
-            <div className="flex flex-wrap justify-center gap-5 text-xs text-white/40">
+            <div className="flex flex-wrap justify-center gap-5 text-xs text-white/60">
               <div className="flex items-center gap-1.5">
                 <span
                   className="inline-block h-3 w-3 rounded-full border border-white/20"
@@ -291,7 +291,7 @@ export default function ZodiacFortunePanel({
 
         {/* 近期建议 */}
         <div className="px-6 py-4 border-b border-white/5">
-          <div className="mb-1.5 text-xs font-medium tracking-widest text-white/30 uppercase">
+          <div className="mb-1.5 text-xs font-medium tracking-widest text-white/60 uppercase">
             近期建议
           </div>
           <p className="text-xs leading-relaxed text-white/55">
@@ -307,7 +307,7 @@ export default function ZodiacFortunePanel({
             </div>
             <div>
               <p className="text-sm font-medium text-white mb-0.5">与八字深度结合解读</p>
-              <p className="text-xs text-white/40">融合本命盘与今日星象，给出个性化建议</p>
+              <p className="text-xs text-white/60">融合本命盘与今日星象，给出个性化建议</p>
             </div>
           </div>
           <PersonalFortuneCard

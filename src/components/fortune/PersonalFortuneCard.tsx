@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   Activity,
@@ -39,13 +39,16 @@ function Stars({ count }: { count: number }) {
 }
 
 export function usePersonalFortune(scope: Scope, sign?: string | null) {
-  const [data, setData] = useState<PersonalFortune | null>(null);
+  const [data, setData] = useState<(PersonalFortune & { isDefaultChart?: boolean }) | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [noChart, setNoChart] = useState(false);
+  // 请求序号：切换本周/本月等范围后，忽略旧范围晚到的响应，避免内容与标签不一致
+  const seq = useRef(0);
 
   const load = useCallback(
     async (refresh = false) => {
+      const id = ++seq.current;
       setLoading(true);
       setError("");
       setNoChart(false);
@@ -56,6 +59,7 @@ export function usePersonalFortune(scope: Scope, sign?: string | null) {
           body: JSON.stringify({ scope, sign: sign ?? null, refresh }),
         });
         const payload = await res.json().catch(() => null);
+        if (id !== seq.current) return;
         if (payload?.success) {
           setData(payload.data);
           return;
@@ -66,18 +70,20 @@ export function usePersonalFortune(scope: Scope, sign?: string | null) {
         }
         throw new Error(payload?.error?.message ?? (typeof payload?.error === "string" ? payload.error : "解读失败"));
       } catch (err) {
-        setError(err instanceof Error ? err.message : "解读失败");
+        if (id === seq.current) setError(err instanceof Error ? err.message : "解读失败");
       } finally {
-        setLoading(false);
+        if (id === seq.current) setLoading(false);
       }
     },
     [scope, sign]
   );
 
   useEffect(() => {
+    seq.current++;
     setData(null);
     setError("");
     setNoChart(false);
+    setLoading(false);
   }, [scope, sign]);
 
   return { data, loading, error, noChart, load };
@@ -85,15 +91,27 @@ export function usePersonalFortune(scope: Scope, sign?: string | null) {
 
 export function NoChartPrompt() {
   return (
-    <div className="rounded-2xl border border-[#5749F4]/25 bg-[#5749F4]/5 p-5 text-center">
+    <div className="rounded-2xl border border-[var(--primary)]/25 bg-[var(--primary)]/5 p-5 text-center">
       <p className="text-sm text-white mb-1">还没有保存的八字命盘</p>
-      <p className="text-xs text-white/45 mb-4">先排一次八字，系统会自动保存，然后就能结合你的本命盘生成专属解读。</p>
+      <p className="text-xs text-white/60 mb-4">先排一次八字并设为本人命盘，就能结合你的本命盘生成专属解读。</p>
       <Link
         href="/bazi"
-        className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-[#5749F4] to-[#7C3AED] px-5 py-2 text-xs font-semibold text-white"
+        className="inline-flex h-10 items-center gap-1.5 rounded-xl bg-gradient-to-r from-[var(--primary)] to-[#7C3AED] px-5 text-xs font-semibold text-white"
       >
         去八字排盘
         <ChevronRight className="h-3.5 w-3.5" />
+      </Link>
+    </div>
+  );
+}
+
+/** 未设置本人命盘时的提示（此时回退到最近保存的一份） */
+export function DefaultChartHint({ name }: { name: string }) {
+  return (
+    <div className="rounded-2xl border border-amber-400/25 bg-amber-400/5 px-4 py-3 text-xs leading-relaxed text-amber-200">
+      还没有设置本人命盘，本次暂用最近保存的「{name}」。
+      <Link href="/profile?tab=bazi" className="ml-1 inline-flex min-h-[24px] items-center underline underline-offset-2 hover:text-white">
+        去档案设为本人命盘
       </Link>
     </div>
   );
@@ -105,19 +123,19 @@ export function PersonalFortuneView({
   onRefresh,
   refreshing,
 }: {
-  data: PersonalFortune;
+  data: PersonalFortune & { isDefaultChart?: boolean };
   onRefresh?: () => void;
   refreshing?: boolean;
 }) {
   const maxTimeline = data.timeline.length;
   return (
     <div className="space-y-4">
-      <div className="relative rounded-3xl border border-white/10 bg-gradient-to-br from-[#16123a] to-[#0d0b1e] p-6 overflow-hidden">
+      <div className="relative rounded-3xl border border-white/10 bg-gradient-to-br from-[#16123a] to-[var(--background)] p-6 overflow-hidden">
         <div className="mb-3 flex flex-wrap items-center gap-2 text-xs text-white/50">
           <CalendarDays className="h-3.5 w-3.5 text-[#8B7CF6]" />
           <span>{data.periodLabel}</span>
           {data.chart && (
-            <span className="rounded-full border border-[#5749F4]/30 bg-[#5749F4]/10 px-2.5 py-0.5 text-[#A78BFA]">
+            <span className="rounded-full border border-[var(--primary)]/30 bg-[var(--primary)]/10 px-2.5 py-0.5 text-[#A78BFA]">
               命盘 · {data.chart.name} · {data.chart.pillars}
             </span>
           )}
@@ -125,7 +143,7 @@ export function PersonalFortuneView({
             <button
               onClick={onRefresh}
               disabled={refreshing}
-              className="ml-auto inline-flex items-center gap-1 text-white/40 hover:text-white/80 disabled:opacity-50"
+              className="ml-auto inline-flex h-10 items-center gap-1 px-2 text-white/70 hover:text-white disabled:opacity-50"
             >
               <RefreshCw className={`h-3 w-3 ${refreshing ? "animate-spin" : ""}`} />
               重新生成
@@ -139,8 +157,10 @@ export function PersonalFortuneView({
         <p className="text-sm leading-relaxed text-white/70">{data.overallSummary}</p>
       </div>
 
+      {data.chart && data.isDefaultChart === false && <DefaultChartHint name={data.chart.name} />}
+
       {data.baziInsight && (
-        <div className="rounded-2xl border border-[#5749F4]/25 bg-[#5749F4]/5 p-5">
+        <div className="rounded-2xl border border-[var(--primary)]/25 bg-[var(--primary)]/5 p-5">
           <div className="mb-2 text-xs font-medium tracking-widest text-[#8B7CF6]">八字 × 流运</div>
           <p className="text-sm leading-relaxed text-white/70">{data.baziInsight}</p>
         </div>
@@ -156,7 +176,7 @@ export function PersonalFortuneView({
         {data.dimensions.map((d) => {
           const Icon = DIM_ICONS[d.label] ?? Activity;
           return (
-            <div key={d.label} className="rounded-2xl border border-white/8 bg-[#13102a] p-5">
+            <div key={d.label} className="rounded-2xl border border-white/8 bg-[var(--card)] p-5">
               <div className="mb-2 flex items-center justify-between">
                 <span className="flex items-center gap-2 text-sm font-semibold text-white">
                   <Icon className="h-4 w-4 text-[#8B7CF6]" />
@@ -175,15 +195,15 @@ export function PersonalFortuneView({
       </div>
 
       {maxTimeline > 0 && (
-        <div className="rounded-2xl border border-white/8 bg-[#13102a] p-5">
-          <div className="mb-4 text-xs font-medium tracking-widest text-white/40">
+        <div className="rounded-2xl border border-white/8 bg-[var(--card)] p-5">
+          <div className="mb-4 text-xs font-medium tracking-widest text-white/60">
             {data.scope === "today" ? "分时段走势" : data.scope === "week" ? "逐日走势" : "月度走势"}
           </div>
           <div className="flex items-end gap-2 h-28 mb-3">
             {data.timeline.map((t) => (
               <div key={t.label} className="flex-1 flex flex-col items-center justify-end h-full">
                 <div
-                  className="w-full max-w-10 rounded-t-lg bg-gradient-to-t from-[#5749F4] to-[#A78BFA]"
+                  className="w-full max-w-10 rounded-t-lg bg-gradient-to-t from-[var(--primary)] to-[#A78BFA]"
                   style={{ height: `${(t.stars / 5) * 100}%` }}
                   title={`${t.stars}/5`}
                 />
@@ -206,12 +226,12 @@ export function PersonalFortuneView({
       )}
 
       {data.keyDates.length > 0 && (
-        <div className="rounded-2xl border border-white/8 bg-[#13102a] p-5">
-          <div className="mb-3 text-xs font-medium tracking-widest text-white/40">关键节点</div>
+        <div className="rounded-2xl border border-white/8 bg-[var(--card)] p-5">
+          <div className="mb-3 text-xs font-medium tracking-widest text-white/60">关键节点</div>
           <ul className="space-y-2">
             {data.keyDates.map((k) => (
               <li key={k.date + k.note} className="flex gap-3 text-xs">
-                <span className="shrink-0 rounded-md bg-[#5749F4]/15 px-2 py-0.5 text-[#A78BFA]">{k.date}</span>
+                <span className="shrink-0 rounded-md bg-[var(--primary)]/15 px-2 py-0.5 text-[#A78BFA]">{k.date}</span>
                 <span className="text-white/60 leading-relaxed">{k.note}</span>
               </li>
             ))}
@@ -221,7 +241,7 @@ export function PersonalFortuneView({
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {(data.yi.length > 0 || data.ji.length > 0) && (
-          <div className="rounded-2xl border border-white/8 bg-[#13102a] p-5 text-xs space-y-2">
+          <div className="rounded-2xl border border-white/8 bg-[var(--card)] p-5 text-xs space-y-2">
             {data.yi.length > 0 && (
               <p className="text-white/60">
                 <span className="text-emerald-300 mr-2">宜</span>
@@ -240,8 +260,8 @@ export function PersonalFortuneView({
           </div>
         )}
         {data.actions.length > 0 && (
-          <div className="rounded-2xl border border-white/8 bg-[#13102a] p-5">
-            <div className="mb-2 text-xs font-medium tracking-widest text-white/40">行动清单</div>
+          <div className="rounded-2xl border border-white/8 bg-[var(--card)] p-5">
+            <div className="mb-2 text-xs font-medium tracking-widest text-white/60">行动清单</div>
             <ol className="list-decimal pl-4 space-y-1 text-xs text-white/60 leading-relaxed">
               {data.actions.map((a) => (
                 <li key={a}>{a}</li>
@@ -278,11 +298,11 @@ export default function PersonalFortuneCard({
   if (noChart) return <NoChartPrompt />;
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-[#13102a] p-6 text-center">
+    <div className="rounded-2xl border border-white/10 bg-[var(--card)] p-6 text-center">
       {loading ? (
         <div className="flex flex-col items-center gap-3 py-6">
           <Loader2 className="h-7 w-7 animate-spin text-[#8B7CF6]" />
-          <p className="text-sm text-white/50">正在结合命盘与当期干支推演，约需 10–30 秒…</p>
+          <p className="text-sm text-white/50">正在结合命盘与当期干支推演，通常 5–15 秒…</p>
         </div>
       ) : (
         <>
@@ -291,7 +311,7 @@ export default function PersonalFortuneCard({
           {error && <p className="mb-3 text-xs text-red-300">{error}</p>}
           <button
             onClick={() => load()}
-            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#5749F4] to-[#7C3AED] px-6 py-2.5 text-sm font-semibold text-white hover:opacity-90"
+            className="inline-flex h-11 items-center gap-2 rounded-xl bg-gradient-to-r from-[var(--primary)] to-[#7C3AED] px-6 text-sm font-semibold text-white hover:opacity-90"
           >
             {error ? "重试" : ctaLabel}
             <ChevronRight className="h-4 w-4" />

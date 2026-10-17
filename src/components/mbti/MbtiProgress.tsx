@@ -62,10 +62,10 @@ export default function MbtiProgress({ currentIndex, total = 60 }: MbtiProgressP
               <span
                 className={`text-xs font-medium transition-colors ${
                   isActive
-                    ? "text-[#5749F4]"
+                    ? "text-[#a99ffb]"
                     : isPast
                     ? "text-[var(--muted-foreground)]"
-                    : "text-white/30"
+                    : "text-white/60"
                 }`}
               >
                 {dim.label}

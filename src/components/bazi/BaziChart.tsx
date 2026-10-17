@@ -160,7 +160,7 @@ function DaYunRow({
               </span>
               <span className="text-base font-bold text-[var(--foreground)]">{yun.ganZhi.charAt(0)}</span>
               <span className="text-base font-bold text-[var(--muted-foreground)]">{yun.ganZhi.charAt(1)}</span>
-              <span className={`text-[10px] mt-1 ${current ? "text-[var(--primary)] font-semibold" : "text-[var(--muted-foreground)]"}`}>
+              <span className={`text-[10px] mt-1 ${current ? "text-[#a99ffb] font-semibold" : "text-[var(--muted-foreground)]"}`}>
                 {current ? "当前" : yun.startYear}
               </span>
             </div>

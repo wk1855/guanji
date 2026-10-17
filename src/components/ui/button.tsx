@@ -24,7 +24,7 @@ const buttonVariants = cva(
         gold:
           "text-[#1A0A00] font-bold hover:opacity-90 shadow-sm",
         link:
-          "bg-transparent text-[var(--primary)] underline-offset-4 hover:underline p-0 h-auto",
+          "bg-transparent text-[#a99ffb] underline-offset-4 hover:underline p-0 h-auto",
       },
       size: {
         sm: "h-8 px-3 text-xs rounded-[var(--radius-xs)]",

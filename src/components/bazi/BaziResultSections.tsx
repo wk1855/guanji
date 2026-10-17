@@ -49,7 +49,7 @@ export function ReadingSection({ readings }: { readings: string[] }) {
           className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5"
         >
           <div className="flex items-center gap-2 mb-3">
-            <span className="text-[var(--primary)] text-base">{icons[i]}</span>
+            <span className="text-[#a99ffb] text-base">{icons[i]}</span>
             <span className="text-sm font-semibold text-[var(--foreground)]">
               {labels[i]}
             </span>

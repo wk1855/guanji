@@ -178,7 +178,7 @@ export default function BaziForm({ onSubmit, isLoading }: BaziFormProps) {
               onClick={() => set("gender", g)}
               className={`h-11 rounded-xl border text-sm font-medium transition-all ${
                 form.gender === g
-                  ? "border-[var(--primary)] bg-[var(--primary)]/8 text-[var(--primary)]"
+                  ? "border-[var(--primary)] bg-[var(--primary)]/8 text-[#a99ffb]"
                   : "border-[var(--border)] text-[var(--muted-foreground)] hover:border-[var(--primary)]/50"
               }`}
             >
@@ -202,7 +202,8 @@ export default function BaziForm({ onSubmit, isLoading }: BaziFormProps) {
                 key={String(key)}
                 type="button"
                 onClick={() => setIsLunar(key)}
-                className={`px-3 py-1 text-xs transition-all ${
+                aria-pressed={isLunar === key}
+                className={`h-10 px-4 text-sm transition-all ${
                   isLunar === key
                     ? "bg-[var(--primary)] text-white"
                     : "text-[var(--muted-foreground)] hover:bg-[var(--muted)]"
@@ -257,11 +258,12 @@ export default function BaziForm({ onSubmit, isLoading }: BaziFormProps) {
       </div>
 
       {(isLunar || errors.day) && (
-        <div className="-mt-3 flex items-center gap-4">
+        <div className="-mt-4 flex items-center gap-4">
           {isLunar && (
-            <label className="flex items-center gap-1.5 text-xs text-[var(--muted-foreground)] cursor-pointer">
+            <label className="flex min-h-[40px] items-center gap-2 text-sm text-[var(--muted-foreground)] cursor-pointer">
               <input
                 type="checkbox"
+                className="h-4 w-4"
                 checked={form.isLeapMonth}
                 onChange={(e) => set("isLeapMonth", e.target.checked)}
               />
@@ -276,9 +278,10 @@ export default function BaziForm({ onSubmit, isLoading }: BaziFormProps) {
       <div>
         <div className="flex items-center justify-between mb-2">
           <Label required>出生时间</Label>
-          <label className="flex items-center gap-1.5 text-xs text-[var(--muted-foreground)] cursor-pointer">
+          <label className="flex min-h-[40px] items-center gap-2 text-sm text-[var(--muted-foreground)] cursor-pointer">
             <input
               type="checkbox"
+              className="h-4 w-4"
               checked={!form.hourKnown}
               onChange={(e) => set("hourKnown", !e.target.checked)}
             />
@@ -314,7 +317,7 @@ export default function BaziForm({ onSubmit, isLoading }: BaziFormProps) {
                   onClick={() => setForm((prev) => ({ ...prev, birthHour: s.hour, birthMinute: s.minute }))}
                   className={`rounded-xl border py-2 px-1 text-center transition-all ${
                     form.birthHour === s.hour && form.birthMinute === s.minute
-                      ? "border-[var(--primary)] bg-[var(--primary)]/8 text-[var(--primary)]"
+                      ? "border-[var(--primary)] bg-[var(--primary)]/8 text-[#a99ffb]"
                       : "border-[var(--border)] text-[var(--muted-foreground)] hover:border-[var(--primary)]/40"
                   }`}
                 >
@@ -376,8 +379,8 @@ export default function BaziForm({ onSubmit, isLoading }: BaziFormProps) {
 
       {/* 真太阳时提示 */}
       <div className="flex items-start gap-2 px-4 py-3 rounded-xl bg-[var(--primary)]/6 border border-[var(--primary)]/20">
-        <Info size={14} className="text-[var(--primary)] mt-0.5 flex-shrink-0" />
-        <p className="text-xs text-[var(--primary)] leading-5">
+        <Info size={14} className="text-[#a99ffb] mt-0.5 flex-shrink-0" />
+        <p className="text-xs text-[#a99ffb] leading-5">
           系统会按出生地经度与均时差换算<strong>真太阳时</strong>；1986–1991 年夏令时期间出生的会自动扣除 1 小时。
           节气交接精确到分钟。
         </p>

@@ -15,7 +15,11 @@
   --card:             #13102a;
   --border:           rgba(255, 255, 255, 0.08);
   --muted:            #1e1a3a;
-  --muted-foreground: rgba(255, 255, 255, 0.45);
+  --muted-foreground: rgba(255, 255, 255, 0.64);
+
+  --card-foreground:  #ffffff;
+  --radius-m:         16px;
+  --radius-pill:      9999px;
 
   /* Gold accent */
   --gold:             #F59E0B;
@@ -40,6 +44,13 @@ body {
   color: var(--foreground);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* 通用卡片 */
+.guanji-card {
+  border-radius: var(--radius-m);
+  border: 1px solid var(--border);
+  background-color: var(--card);
 }
 
 /* ─────────────────────────────────────────────

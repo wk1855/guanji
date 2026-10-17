@@ -86,7 +86,7 @@ export default function ChatInput({
           disabled={disabled}
           placeholder="问点什么…（Enter 发送，Shift+Enter 换行）"
           aria-label="输入问题"
-          className="flex-1 self-center bg-transparent resize-none text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none leading-6 max-h-[120px] min-h-[24px]"
+          className="flex-1 self-center bg-transparent resize-none text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none leading-6 py-2 max-h-[120px] min-h-[40px]"
         />
 
         {/* 发送按钮 */}

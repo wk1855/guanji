@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { leapMonthError } from "@/lib/bazi/leapMonths";
 import { Loader2, Info } from "lucide-react";
 import type { BaziInfo } from "@/app/(main)/bazi/page";
 
@@ -134,6 +135,10 @@ export default function BaziForm({ onSubmit, isLoading }: BaziFormProps) {
     if (!selectedProvince) e.province = "请选择省份";
     if (!selectedCity) e.city = "请选择城市";
     if (form.birthDay > maxDay) e.day = `该月只有 ${maxDay} 天`;
+    if (isLunar && form.isLeapMonth) {
+      const leapErr = leapMonthError(form.birthYear, form.birthMonth);
+      if (leapErr) e.day = leapErr;
+    }
     setErrors(e);
     return Object.keys(e).length === 0;
   };

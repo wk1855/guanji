@@ -110,7 +110,7 @@ export function DefaultChartHint({ name }: { name: string }) {
   return (
     <div className="rounded-2xl border border-amber-400/25 bg-amber-400/5 px-4 py-3 text-xs leading-relaxed text-amber-200">
       还没有设置本人命盘，本次暂用最近保存的「{name}」。
-      <Link href="/profile?tab=bazi" className="ml-1 inline-flex min-h-[24px] items-center underline underline-offset-2 hover:text-white">
+      <Link href="/profile?tab=bazi" className="ml-1 inline-flex min-h-[40px] items-center underline underline-offset-2 hover:text-white">
         去档案设为本人命盘
       </Link>
     </div>

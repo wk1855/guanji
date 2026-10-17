@@ -72,8 +72,8 @@ export function WuXingSummary({ balance }: { balance: Record<string, number> }) 
   const weakPct = Math.round((weakest[1] / total) * 100);
 
   const colorMap: Record<string, string> = {
-    木: "text-green-600", 火: "text-red-600", 土: "text-yellow-600",
-    金: "text-gray-500", 水: "text-blue-600",
+    木: "text-green-400", 火: "text-red-400", 土: "text-yellow-400",
+    金: "text-gray-300", 水: "text-blue-400",
   };
 
   return (

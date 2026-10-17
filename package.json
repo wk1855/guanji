@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test src/lib/bazi/chart.test.ts src/lib/bazi/chart.reference.test.ts src/lib/fortune/period.test.ts src/lib/astro/sky.test.ts src/lib/deepseek.test.ts"
+    "test": "tsx --test src/lib/bazi/leapMonths.test.ts src/lib/bazi/chart.test.ts src/lib/bazi/chart.reference.test.ts src/lib/fortune/period.test.ts src/lib/astro/sky.test.ts src/lib/deepseek.test.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.9.0",

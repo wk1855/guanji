@@ -220,7 +220,7 @@ export default function BaziChart({ result }: BaziChartProps) {
                   {pillar.diZhi}
                 </span>
                 {label !== "时柱" && (
-                  <span className="text-[var(--border)] mx-1">·</span>
+                  <span className="text-white/60 mx-1">·</span>
                 )}
               </span>
             );

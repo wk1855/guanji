@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useSession } from "next-auth/react";
-import { Loader2, AlertCircle, Brain, ChevronLeft, RotateCcw, Check, BookmarkPlus, ChevronRight, Sparkles } from "lucide-react";
+import Link from "next/link";
+import { Loader2, AlertCircle, Brain, ChevronLeft, RotateCcw, Check, ChevronRight, Sparkles } from "lucide-react";
 import MbtiProgress from "@/components/mbti/MbtiProgress";
 import MbtiQuestionCard from "@/components/mbti/MbtiQuestionCard";
 import MbtiResultDisplay from "@/components/mbti/MbtiResultDisplay";
@@ -19,7 +19,7 @@ function IntroSection({ onStart }: { onStart: () => void }) {
   const features = [
     { icon: "☯", title: "命理×心理双重解读", desc: "将16种人格与东方五行哲学深度融合" },
     { icon: "✦", title: "60题深度测评", desc: "精准覆盖EI / SN / TF / JP四个维度" },
-    { icon: "◈", title: "AI个性化解析", desc: "AI命理师为你生成专属性格报告" },
+    { icon: "◈", title: "AI 个性化解析", desc: "AI 命理师生成专属性格报告" },
   ];
 
   return (
@@ -27,7 +27,7 @@ function IntroSection({ onStart }: { onStart: () => void }) {
       {/* 标题区 */}
       <div>
         <div className="w-16 h-16 rounded-2xl bg-[#5749F4]/20 border border-[#5749F4]/30 flex items-center justify-center mx-auto mb-4">
-          <Brain size={28} className="text-[#5749F4]" />
+          <Brain size={28} className="text-[#a99ffb]" />
         </div>
         <h1 className="text-3xl font-black text-[var(--foreground)] mb-3 tracking-wide">
           MBTI 性格测试
@@ -44,7 +44,7 @@ function IntroSection({ onStart }: { onStart: () => void }) {
             key={f.title}
             className="flex items-start gap-4 rounded-2xl border border-white/10 bg-[var(--card)] p-4"
           >
-            <span className="text-xl text-[#5749F4] mt-0.5 flex-shrink-0">{f.icon}</span>
+            <span className="text-xl text-[#a99ffb] mt-0.5 flex-shrink-0">{f.icon}</span>
             <div>
               <p className="text-sm font-semibold text-[var(--foreground)]">{f.title}</p>
               <p className="text-xs text-[var(--muted-foreground)] mt-0.5">{f.desc}</p>
@@ -74,8 +74,6 @@ function IntroSection({ onStart }: { onStart: () => void }) {
 //  主页面
 // ==========================================
 export default function MbtiPage() {
-  const { data: session } = useSession();
-  const isLoggedIn = !!session?.user;
 
   const [step, setStep] = useState<PageStep>("intro");
   const [isLoading, setIsLoading] = useState(false);
@@ -151,31 +149,19 @@ export default function MbtiPage() {
 
   return (
     <div className="min-h-screen bg-[var(--background)]">
-      {/* 顶部彩色细条 */}
-      <div className="h-1 w-full bg-gradient-to-r from-[#5749F4] via-purple-400 to-indigo-400" />
-
-      {/* Header */}
-      <header className="border-b border-[var(--border)] bg-[var(--card)]/80 backdrop-blur-sm sticky top-0 z-20">
-        <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-[#5749F4] text-xl">☯</span>
-            <span className="font-bold text-[var(--foreground)] tracking-wider">观己</span>
-            <span className="text-[var(--muted-foreground)] text-sm mx-2">/</span>
-            <span className="text-sm text-[var(--muted-foreground)]">MBTI 测试</span>
-          </div>
-          {(step === "quiz" || step === "result") && (
+      <div className="max-w-3xl mx-auto px-4 pt-4 flex justify-end min-h-[3.5rem]">
+        {(step === "quiz" || step === "result") && (
             <button
               onClick={handleRetry}
-              className="flex items-center gap-1.5 text-xs text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors"
+              className="inline-flex h-10 items-center gap-1.5 px-3 rounded-lg text-sm text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-white/5 transition-colors"
             >
               <RotateCcw size={13} />
               重新测试
             </button>
           )}
-        </div>
-      </header>
+      </div>
 
-      <main className="max-w-2xl mx-auto px-4 py-8">
+      <main className="max-w-2xl mx-auto px-4 pb-10">
         {/* 引导页 */}
         {step === "intro" && (
           <IntroSection onStart={() => setStep("quiz")} />
@@ -246,7 +232,7 @@ export default function MbtiPage() {
         {isLoading && (
           <div className="flex flex-col items-center justify-center py-24 gap-5">
             <div className="relative">
-              <Loader2 className="h-10 w-10 animate-spin text-[#5749F4]" />
+              <Loader2 className="h-10 w-10 animate-spin text-[#a99ffb]" />
               <div className="absolute inset-0 rounded-full bg-[#5749F4]/10 blur-xl" />
             </div>
             <div className="text-center">
@@ -275,19 +261,19 @@ export default function MbtiPage() {
                 <RotateCcw size={15} />
                 重新测试
               </button>
-              <div className="flex-1 h-12 rounded-xl border border-white/10 bg-[var(--card)] text-sm flex items-center justify-center gap-2">
-                {isLoggedIn ? (
-                  <>
-                    <Check size={15} className="text-green-400" />
-                    <span className="text-green-400">已自动保存到档案</span>
-                  </>
-                ) : (
-                  <>
-                    <BookmarkPlus size={15} className="text-[var(--muted-foreground)]" />
-                    <span className="text-[var(--muted-foreground)]">登录后自动保存</span>
-                  </>
-                )}
-              </div>
+              {(result as { saved?: boolean }).saved === false ? (
+                <div className="flex-1 h-12 rounded-xl border border-white/10 bg-[var(--card)] text-sm flex items-center justify-center gap-2 text-amber-300">
+                  保存失败，可重新测试
+                </div>
+              ) : (
+                <Link
+                  href="/profile?tab=mbti"
+                  className="flex-1 h-12 rounded-xl border border-white/10 bg-[var(--card)] text-sm flex items-center justify-center gap-2 text-green-400 hover:bg-white/5"
+                >
+                  <Check size={15} />
+                  已保存 · 在档案查看
+                </Link>
+              )}
             </div>
 
             <div className="h-8" />

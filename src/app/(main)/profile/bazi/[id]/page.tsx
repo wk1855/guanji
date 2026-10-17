@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Loader2, Sparkles, Trash2, Share2 } from "lucide-react";
 import BaziChart from "@/components/bazi/BaziChart";
 import PosterPreviewModal from "@/components/bazi/PosterPreviewModal";
+import ChartActions from "@/components/bazi/ChartActions";
 import { ReadingSection, WuXingBar, WuXingSummary } from "@/components/bazi/BaziResultSections";
 import type { BaziInfo, BaziResult } from "@/app/(main)/bazi/page";
 
@@ -66,8 +67,8 @@ export default function BaziRecordPage({ params }: { params: { id: string } }) {
     return (
       <div className="max-w-2xl mx-auto px-4 py-16 text-center">
         <p className="text-sm text-[var(--muted-foreground)] mb-4">{error || "记录不存在"}</p>
-        <Link href="/profile" className="text-sm" style={{ color: "var(--primary)" }}>
-          返回个人档案
+        <Link href="/profile" className="inline-flex h-10 items-center text-sm text-[#a99ffb]">
+          返回档案
         </Link>
       </div>
     );
@@ -92,9 +93,9 @@ export default function BaziRecordPage({ params }: { params: { id: string } }) {
   return (
     <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
       <div className="flex items-center justify-between">
-        <Link href="/profile" className="inline-flex items-center gap-1 text-sm text-[var(--muted-foreground)] hover:text-[var(--foreground)]">
+        <Link href="/profile" className="inline-flex h-10 items-center gap-1 text-sm text-[var(--muted-foreground)] hover:text-[var(--foreground)]">
           <ArrowLeft size={15} />
-          个人档案
+          档案
         </Link>
         <span className="text-xs text-[var(--muted-foreground)]">
           排盘于 {new Date(record.created_at).toLocaleString("zh-CN", { timeZone: "Asia/Shanghai", hour12: false })}
@@ -126,13 +127,13 @@ export default function BaziRecordPage({ params }: { params: { id: string } }) {
         </div>
         <div className="text-right">
           <p className="text-xs text-[var(--muted-foreground)] mb-1">日主</p>
-          <p className="text-3xl font-bold text-[var(--primary)]">{result.dayMaster}</p>
+          <p className="text-3xl font-bold text-[#a99ffb]">{result.dayMaster}</p>
         </div>
       </div>
 
       <div>
         <h2 className="text-sm font-semibold text-[var(--muted-foreground)] mb-3 flex items-center gap-1.5">
-          <Sparkles size={14} className="text-[var(--primary)]" />
+          <Sparkles size={14} className="text-[#a99ffb]" />
           四柱命盘
         </h2>
         <BaziChart result={result} />
@@ -154,12 +155,14 @@ export default function BaziRecordPage({ params }: { params: { id: string } }) {
       {Array.isArray(result.basicReading) && result.basicReading.length > 0 && (
         <div>
           <h2 className="text-sm font-semibold text-[var(--muted-foreground)] mb-3 flex items-center gap-1.5">
-            <Sparkles size={14} className="text-[var(--primary)]" />
+            <Sparkles size={14} className="text-[#a99ffb]" />
             AI 解读
           </h2>
           <ReadingSection readings={result.basicReading} />
         </div>
       )}
+
+      <ChartActions chartId={record.id} name={record.name} />
 
       <div className="flex gap-3">
         <button

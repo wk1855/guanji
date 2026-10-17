@@ -4,6 +4,7 @@ import { useState, useCallback } from "react";
 import BaziForm from "@/components/bazi/BaziForm";
 import BaziChart from "@/components/bazi/BaziChart";
 import PosterPreviewModal from "@/components/bazi/PosterPreviewModal";
+import ChartActions from "@/components/bazi/ChartActions";
 import { ReadingSection, WuXingBar, WuXingSummary } from "@/components/bazi/BaziResultSections";
 import {
   Share2,
@@ -120,34 +121,18 @@ export default function BaziPage() {
 
   return (
     <div className="min-h-screen bg-[var(--background)]">
-      <div className="h-1 w-full bg-gradient-to-r from-[var(--primary)] via-purple-400 to-indigo-400" />
-
-      <header className="border-b border-[var(--border)] bg-[var(--card)]/80 backdrop-blur-sm sticky top-0 z-20">
-        <div className="max-w-3xl mx-auto px-4 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-[var(--primary)] text-xl">☯</span>
-            <span className="font-bold text-[var(--foreground)] tracking-wider">
-              观己
-            </span>
-            <span className="text-[var(--muted-foreground)] text-sm mx-2">
-              /
-            </span>
-            <span className="text-sm text-[var(--muted-foreground)]">
-              八字排盘
-            </span>
-          </div>
-          {step === "result" && (
+      <div className="max-w-3xl mx-auto px-4 pt-4 flex justify-end min-h-[3.5rem]">
+        {step === "result" && (
             <button
               onClick={() => { setStep("form"); setResult(null); setError(""); }}
-              className="text-xs text-[var(--primary)] hover:underline"
+              className="inline-flex h-10 items-center px-3 rounded-lg text-sm text-[#a99ffb] hover:bg-white/5"
             >
               重新排盘
             </button>
           )}
-        </div>
-      </header>
+      </div>
 
-      <main className="max-w-3xl mx-auto px-4 py-8">
+      <main className="max-w-3xl mx-auto px-4 pb-10">
         {step === "form" && (
           <div>
             <div className="text-center mb-8">
@@ -196,7 +181,7 @@ export default function BaziPage() {
                 <p className="text-xs text-[var(--muted-foreground)] mb-1">
                   日主
                 </p>
-                <p className="text-3xl font-bold text-[var(--primary)]">
+                <p className="text-3xl font-bold text-[#a99ffb]">
                   {result.dayMaster}
                 </p>
                 <p className="text-xs text-[var(--muted-foreground)]">
@@ -207,7 +192,7 @@ export default function BaziPage() {
 
             <div>
               <h2 className="text-sm font-semibold text-[var(--muted-foreground)] mb-3 flex items-center gap-1.5">
-                <Sparkles size={14} className="text-[var(--primary)]" />
+                <Sparkles size={14} className="text-[#a99ffb]" />
                 四柱命盘
               </h2>
               <BaziChart result={result} />
@@ -215,7 +200,7 @@ export default function BaziPage() {
 
             <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5">
               <h2 className="text-sm font-semibold text-[var(--foreground)] mb-4 flex items-center gap-1.5">
-                <span className="text-[var(--primary)]">◎</span>
+                <span className="text-[#a99ffb]">◎</span>
                 五行偏旺 / 偏弱分析
               </h2>
               <WuXingBar balance={result.wuXingBalance} />
@@ -224,7 +209,7 @@ export default function BaziPage() {
 
             <div>
               <h2 className="text-sm font-semibold text-[var(--muted-foreground)] mb-3 flex items-center gap-1.5">
-                <Sparkles size={14} className="text-[var(--primary)]" />
+                <Sparkles size={14} className="text-[#a99ffb]" />
                 基础解读
               </h2>
               <ReadingSection readings={result.basicReading} />
@@ -250,6 +235,8 @@ export default function BaziPage() {
               </div>
             </div>
 
+            {result.id && <ChartActions chartId={result.id} name={baziInfo.name} />}
+
             {posterOpen && baziInfo && result && (
               <PosterPreviewModal
                 info={baziInfo}
@@ -264,8 +251,8 @@ export default function BaziPage() {
 
         {isLoading && (
           <div className="flex flex-col items-center justify-center py-20 gap-4">
-            <Loader2 className="h-8 w-8 animate-spin text-[var(--primary)]" />
-            <p className="text-sm text-[var(--muted-foreground)]">AI 正在为您排盘中，请稍候…</p>
+            <Loader2 className="h-8 w-8 animate-spin text-[#a99ffb]" />
+            <p className="text-sm text-[var(--muted-foreground)]">正在排盘并生成解读，通常 3–10 秒…</p>
           </div>
         )}
       </main>

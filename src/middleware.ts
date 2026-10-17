@@ -13,6 +13,12 @@ function isPublicPath(pathname: string): boolean {
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  // 已登录访问登录页：直接回到首页看板
+  if (pathname === "/login") {
+    const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+    if (token) return NextResponse.redirect(new URL("/", request.url));
+    return NextResponse.next();
+  }
   if (isPublicPath(pathname)) {
     return NextResponse.next();
   }

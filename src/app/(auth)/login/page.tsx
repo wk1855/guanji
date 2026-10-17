@@ -75,7 +75,7 @@ function LoginBackground() {
 
 function LoginForm() {
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") || "/bazi";
+  const callbackUrl = searchParams.get("callbackUrl") || "/";
   const error = searchParams.get("error");
 
   const [showPassword, setShowPassword] = useState(false);
@@ -133,7 +133,7 @@ function LoginForm() {
             <span className="font-serif text-3xl font-bold text-white leading-none">观</span>
           </div>
           <h1 className="font-serif text-2xl font-semibold text-white tracking-widest mb-1">观己</h1>
-          <p className="text-sm text-white/40 tracking-wider">观己知序，安住当下</p>
+          <p className="text-sm text-white/60 tracking-wider">观己知序，安住当下</p>
         </div>
       </div>
 
@@ -147,13 +147,13 @@ function LoginForm() {
 
         <div className="mb-6">
           <h2 className="text-lg font-medium text-white/90">站长登录</h2>
-          <p className="mt-1 text-xs text-white/35">本站仅供个人使用，使用环境变量中的账号登录</p>
+          <p className="mt-1 text-xs text-white/60">本站仅供个人使用</p>
         </div>
 
         {/* 表单 */}
         <form onSubmit={handleSubmit} className="space-y-3 mb-5">
           <div className="relative">
-            <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+            <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/60" />
             <input
               type="text"
               placeholder="用户名"
@@ -165,7 +165,7 @@ function LoginForm() {
           </div>
 
           <div className="relative">
-            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/60" />
             <input
               type={showPassword ? "text" : "password"}
               placeholder="密码"
@@ -177,7 +177,7 @@ function LoginForm() {
             <button
               type="button"
               onClick={() => setShowPassword(v => !v)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-white/60 hover:text-white/60 transition"
             >
               {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
@@ -198,18 +198,11 @@ function LoginForm() {
           </button>
         </form>
 
-        <p className="text-center text-xs text-white/25 leading-relaxed">
+        <p className="text-center text-xs text-white/60 leading-relaxed">
           内容仅供娱乐参考，不构成任何决策建议
         </p>
       </div>
 
-      <div className="mt-6 flex justify-center gap-6 text-xs text-white/25">
-        <span>八字排盘</span>
-        <span className="text-white/10">·</span>
-        <span>AI命理师</span>
-        <span className="text-white/10">·</span>
-        <span>每日运势</span>
-      </div>
     </div>
   );
 }

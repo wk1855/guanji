@@ -11,17 +11,14 @@ export const SITE_DESCRIPTION =
 export const COMPLIANCE_TEXT =
   "本产品内容仅供娱乐参考，不构成任何决策建议，不宣扬封建迷信";
 
-// 导航菜单
+// 导航菜单（与 components/layout/Navbar.tsx 保持一致）
 export const NAV_LINKS = [
-  { href: "/fortune", label: "每日运势", icon: "Star" },
-  { href: "/bazi", label: "八字排盘", icon: "BookOpen" },
-  { href: "/mbti", label: "MBTI测试", icon: "Brain" },
-  { href: "/zodiac", label: "星座罗盘", icon: "Compass" },
-  { href: "/match", label: "缘分配对", icon: "Heart" },
-  { href: "/ai-chat", label: "AI对话", icon: "MessageCircle" },
-  { href: "/profile", label: "个人档案", icon: "User" },
-  // 单账号个人站，不再展示会员入口
-  // { href: "/membership", label: "会员", icon: "Crown" },
+  { href: "/fortune", label: "今日", icon: "Star" },
+  { href: "/bazi", label: "排盘", icon: "BookOpen" },
+  { href: "/ai-chat", label: "对话", icon: "MessageCircle" },
+  { href: "/zodiac", label: "星座", icon: "Compass" },
+  { href: "/mbti", label: "MBTI", icon: "Brain" },
+  { href: "/profile", label: "档案", icon: "User" },
 ] as const;
 
 // 12星座

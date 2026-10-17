@@ -93,17 +93,21 @@ export async function saveChatMessage(params: {
   sessionId: string;
   role: "user" | "assistant";
   content: string;
-}): Promise<boolean> {
+}): Promise<string | null> {
   const supabase = createServiceRoleClient();
-  const { error } = await supabase.from("chat_messages").insert({
-    session_id: params.sessionId,
-    role: params.role,
-    content: params.content,
-  });
+  const { data, error } = await supabase
+    .from("chat_messages")
+    .insert({
+      session_id: params.sessionId,
+      role: params.role,
+      content: params.content,
+    })
+    .select("id")
+    .single();
 
   if (error) {
     console.error("[DB:chat] saveChatMessage error:", error.message);
-    return false;
+    return null;
   }
 
   // 以实际消息条数为准，避免并发自增出错
@@ -127,7 +131,7 @@ export async function saveChatMessage(params: {
   if (updateError) {
     console.error("[DB:chat] update session error:", updateError.message);
   }
-  return true;
+  return (data?.id as string) ?? null;
 }
 
 // 删除会话（消息随外键级联删除），返回是否删除成功

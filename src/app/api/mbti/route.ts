@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { annotateAiLog } from "@/lib/ai-log";
 import { saveMbtiResult } from "@/lib/db/mbti";
 import { MBTI_FIVE_ELEMENT } from "@/lib/constants";
-import { chatCompletion, parseJsonFromModel } from "@/lib/deepseek";
+import { chatCompletion, parseLoggedJson } from "@/lib/deepseek";
 import { enforceAiRateLimit, requireUser } from "@/lib/require-session";
 import type { MbtiAnswers, MbtiType, FiveElement } from "@/types";
 
@@ -116,7 +117,7 @@ export async function POST(req: NextRequest) {
 
 请根据以上信息，按要求返回个性化解读JSON。`;
 
-    const { content } = await chatCompletion({
+    const { content, logId } = await chatCompletion({
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: userMsg },
@@ -125,13 +126,14 @@ export async function POST(req: NextRequest) {
       thinking: false,
       temperature: 0.7,
       maxTokens: 1024,
+      log: { userId: auth.user.id, apiType: "mbti", promptVersion: "mbti.v1" },
     });
-    const aiResult = parseJsonFromModel<{
+    const aiResult = parseLoggedJson<{
       aiReading?: string;
       keyTraits?: string[];
       compatibleTypes?: string[];
       elementReading?: string;
-    }>(content);
+    }>(content, logId);
 
     const result = {
       mbtiType,
@@ -161,6 +163,7 @@ export async function POST(req: NextRequest) {
       return null;
     });
 
+    if (savedId) annotateAiLog(logId, { mbti_result_id: savedId as string });
     return NextResponse.json({ ...result, id: savedId, saved: !!savedId });
   } catch (err) {
     console.error("[mbti API] error:", err);

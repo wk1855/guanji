@@ -550,3 +550,53 @@ TO service_role;
 -- ============================================================
 ALTER TABLE public.users
   ADD COLUMN IF NOT EXISTS default_bazi_chart_id UUID REFERENCES public.bazi_charts(id) ON DELETE SET NULL;
+
+
+-- ============================================================
+-- AI 模型调用日志（完整 prompt / 输出 / 用量 / 耗时 + 人工评分）
+-- 旧表 ai_usage_logs 未使用，保留不动
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public.ai_call_logs (
+  id                 UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id            UUID        REFERENCES public.users(id) ON DELETE CASCADE,
+  api_type           TEXT        NOT NULL CHECK (api_type IN ('bazi', 'fortune', 'fortune_personal', 'zodiac', 'mbti', 'chat')),
+  -- 关联记录（不加外键：原记录删除后日志仍保留，便于离线评估）
+  session_id         UUID,
+  message_id         UUID,
+  bazi_chart_id      UUID,
+  mbti_result_id     UUID,
+  model              TEXT,
+  prompt_version     TEXT,
+  stream             BOOLEAN     NOT NULL DEFAULT FALSE,
+  request_params     JSONB,                      -- temperature / thinking / json / max_tokens / reasoning_effort
+  messages           JSONB       NOT NULL,       -- 发送给模型的完整 messages（system + user + 历史）
+  response_content   TEXT,                       -- 模型完整原始输出（已剥离 reasoning）
+  finish_reason      TEXT,
+  prompt_tokens      INT,
+  completion_tokens  INT,
+  total_tokens       INT,
+  cache_hit_tokens   INT,
+  cache_miss_tokens  INT,
+  latency_ms         INT,
+  ttft_ms            INT,                        -- 流式：首 token 耗时
+  status             TEXT        NOT NULL DEFAULT 'success' CHECK (status IN ('success', 'error', 'timeout')),
+  http_status        INT,
+  error_message      TEXT,
+  -- 人工评分
+  rating             SMALLINT    CHECK (rating BETWEEN 1 AND 5),
+  quick_rating       SMALLINT    CHECK (quick_rating IN (-1, 1)),   -- 1 = 好 / -1 = 差
+  tags               TEXT[]      NOT NULL DEFAULT '{}',
+  note               TEXT,
+  rated_at           TIMESTAMPTZ,
+  created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_ai_call_logs_user_created ON public.ai_call_logs (user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_call_logs_type ON public.ai_call_logs (api_type);
+CREATE INDEX IF NOT EXISTS idx_ai_call_logs_message ON public.ai_call_logs (message_id) WHERE message_id IS NOT NULL;
+
+COMMENT ON TABLE public.ai_call_logs IS 'AI 模型调用完整日志（含 prompt/输出/用量/耗时）与人工评分；仅 service_role 访问';
+
+ALTER TABLE public.ai_call_logs ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.ai_call_logs FROM PUBLIC, anon, authenticated;
+GRANT ALL ON public.ai_call_logs TO service_role;

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { chatCompletionStream } from "@/lib/deepseek";
+import { annotateAiLog, newLogId } from "@/lib/ai-log";
 import { createChatSession, getChatSession, saveChatMessage } from "@/lib/db/chat";
 import { getBaziChartById, getPersonalBaziChart } from "@/lib/db/bazi";
 import { formatSavedChartForPrompt, type BaziRecordRow } from "@/lib/bazi/record";
@@ -148,10 +149,13 @@ export async function POST(req: NextRequest) {
       })),
     ];
 
+    const logId = newLogId();
     const upstream = await chatCompletionStream({
       messages: upstreamMessages,
       temperature: 0.6,
       maxTokens: 2048,
+      logId,
+      log: { userId: auth.user.id, apiType: "chat", promptVersion: "chat.v2", sessionId },
     });
 
     const headers = new Headers(upstream.headers);
@@ -163,7 +167,8 @@ export async function POST(req: NextRequest) {
     const persistedSessionId = sessionId;
     const stream = teeAndPersist(upstream.body, async (text) => {
       if (text.trim()) {
-        await saveChatMessage({ sessionId: persistedSessionId, role: "assistant", content: text });
+        const messageId = await saveChatMessage({ sessionId: persistedSessionId, role: "assistant", content: text });
+        if (messageId) annotateAiLog(logId, { message_id: messageId });
       }
     });
     return new Response(stream, { headers });

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getFortuneCacheByDate, saveFortuneCacheByDate } from "@/lib/db/fortune";
-import { chatCompletion, parseJsonFromModel } from "@/lib/deepseek";
+import { chatCompletion, parseLoggedJson } from "@/lib/deepseek";
 import { formatAlmanacForPrompt, todayAlmanac, type Almanac } from "@/lib/fortune/almanac";
 import { enforceAiRateLimit, requireUser } from "@/lib/require-session";
 
@@ -65,7 +65,7 @@ export async function GET() {
     const limited = enforceAiRateLimit(auth.user.id);
     if (limited) return limited;
 
-    const { content } = await chatCompletion({
+    const { content, logId } = await chatCompletion({
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: `今日黄历（万年历计算结果）：\n${formatAlmanacForPrompt(almanac)}\n\n请据此生成今日运势解读。` },
@@ -74,9 +74,10 @@ export async function GET() {
       thinking: false,
       temperature: 0.4,
       maxTokens: 2048,
+      log: { userId: auth.user.id, apiType: "fortune", promptVersion: `fortune.v${CACHE_VERSION}` },
     });
 
-    const fortune = assemble(parseJsonFromModel<Record<string, unknown>>(content), almanac);
+    const fortune = assemble(parseLoggedJson<Record<string, unknown>>(content, logId), almanac);
 
     await saveFortuneCacheByDate(almanac.dateKey, fortune).catch((err) =>
       console.error("[fortune API] save cache error:", err)

@@ -51,3 +51,42 @@ describe("DeepSeek 解析", () => {
     assert.equal(text.includes("[DONE]"), true);
   });
 });
+
+describe("流式观察者（日志用）", () => {
+  it("累积正文、finish_reason 与 usage，且不包含 reasoning", async () => {
+    const payload = [
+      "data: {\"choices\":[{\"delta\":{\"reasoning_content\":\"想\"}}]}",
+      "data: {\"choices\":[{\"delta\":{\"content\":\"你\"}}]}",
+      "data: {\"choices\":[{\"delta\":{\"content\":\"好\"},\"finish_reason\":\"stop\"}]}",
+      "data: {\"choices\":[],\"usage\":{\"prompt_tokens\":10,\"completion_tokens\":2,\"total_tokens\":12,\"prompt_cache_hit_tokens\":4}}",
+      "data: [DONE]",
+      "",
+    ].join("\n");
+    const input = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode(payload));
+        controller.close();
+      },
+    });
+    let text = "";
+    let finish = "";
+    let usage: Record<string, number> | undefined;
+    let ended = false;
+    const out = stripReasoningFromSse(input, {
+      onChunk(json) {
+        text += json.choices?.[0]?.delta?.content ?? "";
+        if (json.choices?.[0]?.finish_reason) finish = json.choices[0].finish_reason;
+        if (json.usage) usage = json.usage as Record<string, number>;
+      },
+      onEnd(err) {
+        ended = !err;
+      },
+    });
+    await new Response(out).text();
+    assert.equal(text, "你好");
+    assert.equal(finish, "stop");
+    assert.equal(usage?.total_tokens, 12);
+    assert.equal(usage?.prompt_cache_hit_tokens, 4);
+    assert.equal(ended, true);
+  });
+});

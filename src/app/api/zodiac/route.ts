@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getZodiacFortuneCached, saveZodiacFortuneCache } from "@/lib/db/zodiac";
 import { ZODIAC_DATA } from "@/lib/data/zodiacData";
-import { chatCompletion, parseJsonFromModel } from "@/lib/deepseek";
+import { chatCompletion, parseLoggedJson } from "@/lib/deepseek";
 import { formatSkyForPrompt, todaySky } from "@/lib/astro/sky";
 import { enforceAiRateLimit, requireUser } from "@/lib/require-session";
 
@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
     if (limited) return limited;
 
     const zodiacInfo = ZODIAC_DATA[sign];
-    const { content } = await chatCompletion({
+    const { content, logId } = await chatCompletion({
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         {
@@ -68,9 +68,10 @@ export async function GET(request: NextRequest) {
       thinking: false,
       temperature: 0.4,
       maxTokens: 2048,
+      log: { userId: auth.user.id, apiType: "zodiac", promptVersion: `zodiac.v${CACHE_VERSION}` },
     });
 
-    const fortune = parseJsonFromModel<Record<string, unknown>>(content);
+    const fortune = parseLoggedJson<Record<string, unknown>>(content, logId);
     const ruling = sky.planets.filter((p) => zodiacInfo.rulingPlanet.includes(p.name));
     const result = {
       ...fortune,

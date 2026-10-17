@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { annotateAiLog } from "@/lib/ai-log";
 import { findBaziChartByInputKey, saveBaziChart } from "@/lib/db/bazi";
-import { chatCompletion, parseJsonFromModel } from "@/lib/deepseek";
+import { chatCompletion, parseLoggedJson } from "@/lib/deepseek";
 import { computeBaziChart, formatChartForPrompt } from "@/lib/bazi/chart";
 import { todayAlmanac } from "@/lib/fortune/almanac";
 import { enforceAiRateLimit, requireUser } from "@/lib/require-session";
@@ -116,7 +117,7 @@ export async function POST(req: NextRequest) {
 
 ${formatChartForPrompt(chart, { date: `${almanac.date}`, yearGanZhi: almanac.yearGanZhi, dayGanZhi: almanac.dayGanZhi })}`;
 
-    const { content } = await chatCompletion({
+    const { content, logId } = await chatCompletion({
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: userMsg },
@@ -125,9 +126,10 @@ ${formatChartForPrompt(chart, { date: `${almanac.date}`, yearGanZhi: almanac.yea
       thinking: false,
       temperature: 0.4,
       maxTokens: 2048,
+      log: { userId: auth.user.id, apiType: "bazi", promptVersion: "bazi.v3" },
     });
 
-    const aiResult = parseJsonFromModel<{ basicReading?: string[] }>(content);
+    const aiResult = parseLoggedJson<{ basicReading?: string[] }>(content, logId);
     const result = {
       ...base,
       basicReading: Array.isArray(aiResult.basicReading) ? aiResult.basicReading.map(String) : [],
@@ -149,6 +151,7 @@ ${formatChartForPrompt(chart, { date: `${almanac.date}`, yearGanZhi: almanac.yea
       return null;
     });
 
+    if (chartId) annotateAiLog(logId, { bazi_chart_id: chartId });
     return NextResponse.json({ ...result, id: chartId });
   } catch (err) {
     console.error("[bazi API] error:", err);

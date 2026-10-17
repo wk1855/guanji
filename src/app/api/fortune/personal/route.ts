@@ -4,7 +4,7 @@ import { formatSavedChartForPrompt, type BaziRecordRow } from "@/lib/bazi/record
 import { ZODIAC_DATA } from "@/lib/data/zodiacData";
 import { formatSkyForPrompt, todaySky } from "@/lib/astro/sky";
 import { formatAlmanacForPrompt, todayAlmanac } from "@/lib/fortune/almanac";
-import { chatCompletion, parseJsonFromModel } from "@/lib/deepseek";
+import { chatCompletion, parseLoggedJson } from "@/lib/deepseek";
 import { buildPeriodContext, formatPeriodForPrompt, type FortuneScope } from "@/lib/fortune/period";
 import { normalizePersonalFortune, timelineSkeleton, type PersonalFortune } from "@/lib/fortune/personal";
 import { enforceAiRateLimit, requireUser } from "@/lib/require-session";
@@ -110,7 +110,7 @@ export async function POST(req: NextRequest) {
   ].filter(Boolean);
 
   try {
-    const { content } = await chatCompletion({
+    const { content, logId } = await chatCompletion({
       messages: [
         { role: "system", content: buildSystemPrompt(scope, !!row, !!zodiac, timelineHint) },
         { role: "user", content: userParts.join("\n\n") },
@@ -119,9 +119,15 @@ export async function POST(req: NextRequest) {
       thinking: false,
       temperature: 0.4,
       maxTokens: scope === "month" ? 3000 : 2400,
+      log: {
+        userId: auth.user.id,
+        apiType: "fortune_personal",
+        promptVersion: `fortune_personal.v${CACHE_VERSION}.${scope}${sign ? ".zodiac" : ""}`,
+        baziChartId: row?.id ?? null,
+      },
     });
 
-    const raw = parseJsonFromModel<Record<string, unknown>>(content);
+    const raw = parseLoggedJson<Record<string, unknown>>(content, logId);
     const r = row?.result_json as Record<string, { tianGan?: string; diZhi?: string }> | undefined;
     const pillars = r
       ? [r.yearPillar, r.monthPillar, r.dayPillar, r.hourPillar].map((p) => `${p?.tianGan ?? ""}${p?.diZhi ?? ""}`).join(" ")

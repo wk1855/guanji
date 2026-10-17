@@ -2,6 +2,8 @@ import { NextRequest } from "next/server";
 import { getBaziChartById, getLatestBaziChart } from "@/lib/db/bazi";
 import { formatSavedChartForPrompt, type BaziRecordRow } from "@/lib/bazi/record";
 import { ZODIAC_DATA } from "@/lib/data/zodiacData";
+import { formatSkyForPrompt, todaySky } from "@/lib/astro/sky";
+import { formatAlmanacForPrompt, todayAlmanac } from "@/lib/fortune/almanac";
 import { chatCompletion, parseJsonFromModel } from "@/lib/deepseek";
 import { buildPeriodContext, formatPeriodForPrompt, type FortuneScope } from "@/lib/fortune/period";
 import { normalizePersonalFortune, timelineSkeleton, type PersonalFortune } from "@/lib/fortune/personal";
@@ -15,9 +17,10 @@ const SCOPE_TEXT: Record<FortuneScope, string> = { today: "今日", week: "本�
 
 // 同一实例内的轻量缓存：同一天、同一命盘、同一范围不重复调用 AI（可用 refresh 强制刷新）
 const cache = new Map<string, PersonalFortune>();
+const CACHE_VERSION = 2;
 
 function buildSystemPrompt(scope: FortuneScope, hasChart: boolean, hasSign: boolean, timelineHint: string) {
-  return `你是「观己」平台的资深命理师，精通子平八字（以《渊海子平》《三命通会》《滴天髓》为宗）与西方占星。
+  return `你是「观己」平台的资深命理师，精通子平八字与西方占星。
 你要基于给出的真实历法干支${hasChart ? "和命主已排好的八字命盘" : ""}${hasSign ? "以及命主星座" : ""}，生成${SCOPE_TEXT[scope]}的个性化运势。
 ${hasChart ? "必须具体分析流年/流月/流日干支与命主日主、四柱、当前大运的生克冲合关系，不要泛泛而谈；严禁改动命盘。" : "命主尚未提供八字，按当期干支给出通用但具体的解读。"}
 ${hasSign ? "把星座元素特质与八字五行喜忌融合，说明二者如何共同影响当期。" : ""}
@@ -48,7 +51,8 @@ ${hasSign ? "把星座元素特质与八字五行喜忌融合，说明二者如�
 2. ${scope === "month" ? "keyDates 给 3-5 个本月关键日期（来自给定逐日干支）" : scope === "week" ? "keyDates 给 2-3 个本周关键日期" : "keyDates 返回空数组"}
 3. 星级要有起伏，不要全部相同
 4. 语气温和正向，负面信息必须配套建议，禁止「大凶」「破财」「血光之灾」等恐吓措辞
-5. 仅供娱乐参考，不构成决策建议`;
+5. 历法干支、黄历、星象只能使用用户消息中给出的数据，严禁编造未给出的干支、宜忌、行星位置、逆行或相位；不要编造典籍引文
+6. 仅供娱乐参考，不构成决策建议`;
 }
 
 export async function POST(req: NextRequest) {
@@ -77,7 +81,7 @@ export async function POST(req: NextRequest) {
   }
 
   const ctx = buildPeriodContext(scope);
-  const cacheKey = [auth.user.id, scope, sign ?? "-", row?.id ?? "-", ctx.todayKey].join(":");
+  const cacheKey = [CACHE_VERSION, auth.user.id, scope, sign ?? "-", row?.id ?? "-", ctx.todayKey].join(":");
   if (!body.refresh && cache.has(cacheKey)) return ok(cache.get(cacheKey));
 
   const limited = enforceAiRateLimit(auth.user.id);
@@ -89,6 +93,8 @@ export async function POST(req: NextRequest) {
   const zodiac = sign ? ZODIAC_DATA[sign] : null;
   const userParts = [
     `【当期历法】\n${formatPeriodForPrompt(ctx)}`,
+    scope === "today" ? `【今日黄历（万年历计算）】\n${formatAlmanacForPrompt(todayAlmanac())}` : "",
+    zodiac ? `【今日真实星象（天文历表计算）】\n${formatSkyForPrompt(todaySky(), sign!)}` : "",
     `【时间轴分段】${skeleton.map((s) => s.label + (s.ganZhi ? `(${s.ganZhi})` : "")).join("；")}`,
     row ? `【命主八字】\n${formatSavedChartForPrompt(row)}` : "",
     zodiac
@@ -104,7 +110,7 @@ export async function POST(req: NextRequest) {
       ],
       json: true,
       thinking: false,
-      temperature: 0.6,
+      temperature: 0.4,
       maxTokens: scope === "month" ? 3000 : 2400,
     });
 

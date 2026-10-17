@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { chatCompletionStream } from "@/lib/deepseek";
 import { createChatSession, getChatSession, saveChatMessage } from "@/lib/db/chat";
+import { getLatestBaziChart } from "@/lib/db/bazi";
+import { formatSavedChartForPrompt, type BaziRecordRow } from "@/lib/bazi/record";
+import { formatAlmanacForPrompt, todayAlmanac } from "@/lib/fortune/almanac";
 import { enforceAiRateLimit, requireUser } from "@/lib/require-session";
 
 const SYSTEM_PROMPT = `你是「观己」平台的AI命理师，名为「玄机」。
@@ -10,7 +13,7 @@ const SYSTEM_PROMPT = `你是「观己」平台的AI命理师，名为「玄机�
 1. 所有解读定位为「东方传统文化科普与娱乐参考」，明确不构成任何决策建议
 2. 使用温和、共情的语气，避免制造焦虑和恐慌
 3. 负面信息必须配套至少3条正向应对建议
-4. 引用《三命通会》《渊海子平》《滴天髓》等正统典籍作为依据
+4. 不要编造典籍引文或出处；历法、命盘数据以系统提供的为准，不要自行推算或改动四柱
 5. 禁止出现「大凶」「必死」「破财」「血光之灾」「改命」「算命」等话术
 6. 每次回复结尾附上：「以上内容仅供娱乐参考，不构成任何决策建议。」
 
@@ -112,8 +115,18 @@ export async function POST(req: NextRequest) {
       await saveChatMessage({ sessionId, role: "user", content: lastUserMsg.content.trim() });
     }
 
+    // 自动带上今日黄历与站长最近保存的命盘，避免模型自行编造日期/干支
+    const almanac = todayAlmanac();
+    const latestChart = (await getLatestBaziChart(auth.user.id).catch(() => null)) as BaziRecordRow | null;
+    const contextBlock = [
+      `【今日（北京时间）】\n${formatAlmanacForPrompt(almanac)}`,
+      latestChart
+        ? `【用户最近保存的八字命盘（系统精确排出，用户问到"我的命盘/八字"时以此为准；若用户谈论他人则不要套用）】\n${formatSavedChartForPrompt(latestChart)}`
+        : "【用户尚未保存八字命盘】如需个人命理分析，可建议先到「八字排盘」生成。",
+    ].join("\n\n");
+
     const upstreamMessages = [
-      { role: "system" as const, content: SYSTEM_PROMPT },
+      { role: "system" as const, content: `${SYSTEM_PROMPT}\n\n${contextBlock}` },
       ...messages.slice(-20).map((m) => ({
         role: (m.role === "assistant" ? "assistant" : "user") as "assistant" | "user",
         content: m.content,
@@ -122,6 +135,7 @@ export async function POST(req: NextRequest) {
 
     const upstream = await chatCompletionStream({
       messages: upstreamMessages,
+      temperature: 0.6,
       maxTokens: 2048,
     });
 

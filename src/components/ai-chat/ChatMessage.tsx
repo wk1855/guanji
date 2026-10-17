@@ -1,16 +1,27 @@
 "use client";
 
-// 用原生 Intl 替代 date-fns，减少依赖
-function format(date: Date, _fmt: string): string {
-  return date.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false });
+import { useEffect, useState } from "react";
+
+// 时间只在浏览器端渲染（服务端与浏览器时区不同，直接渲染会导致 hydration 不一致）
+function TimeLabel({ date }: { date?: Date }) {
+  const [text, setText] = useState("");
+  useEffect(() => {
+    if (date) setText(date.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false }));
+  }, [date]);
+  return text ? <>{text}</> : null;
+}
+
+// 旧回复正文末尾可能带有免责声明；界面已统一展示一次，这里去掉重复的那句
+const TRAILING_DISCLAIMER = /\n*\s*(?:以上内容)?仅供娱乐参考[，,]?\s*不构成任何决策建议[。.]?\s*$/;
+export function stripDisclaimer(text: string) {
+  return text.replace(TRAILING_DISCLAIMER, "").trimEnd();
 }
 
 export interface ChatMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
-  timestamp: Date;
-  reference?: string;
+  timestamp?: Date;
 }
 
 interface ChatMessageProps {
@@ -42,36 +53,22 @@ function AssistantBubble({
 
       <div className="flex flex-col gap-1 min-w-0">
         <span className="text-xs text-[var(--muted-foreground)] ml-1">
-          观己·玄机
+          AI 命理师
         </span>
 
         {/* 气泡 */}
         <div className="relative rounded-2xl rounded-tl-sm border border-[var(--border)] bg-[var(--card)] px-4 py-3 shadow-sm">
           <p className="text-sm leading-7 text-[var(--foreground)] whitespace-pre-wrap break-words">
-            {message.content}
+            {isStreaming ? message.content : stripDisclaimer(message.content)}
             {isStreaming && <Cursor />}
           </p>
 
-          {/* 典籍引用角标 */}
-          {message.reference && !isStreaming && (
-            <div className="mt-3 pt-3 border-t border-[var(--border)]">
-              <div className="flex items-start gap-1.5">
-                <span className="text-[10px] bg-[var(--primary)]/10 text-[var(--primary)] px-1.5 py-0.5 rounded font-medium flex-shrink-0 mt-0.5">
-                  典
-                </span>
-                <p className="text-[11px] text-[var(--muted-foreground)] leading-4 italic">
-                  「{message.reference}」
-                </p>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* 免责声明 */}
-        {!isStreaming && (
-          <p className="text-[10px] text-[var(--muted-foreground)]/60 ml-1">
-            以上内容仅供娱乐参考 ·{" "}
-            {format(message.timestamp, "HH:mm")}
+        {!isStreaming && message.id !== "welcome" && (
+          <p className="text-[11px] text-[var(--muted-foreground)] ml-1">
+            仅供娱乐参考，不构成决策建议 <TimeLabel date={message.timestamp} />
           </p>
         )}
       </div>
@@ -95,8 +92,8 @@ function UserBubble({ message }: { message: ChatMessage }) {
             {message.content}
           </p>
         </div>
-        <p className="text-[10px] text-[var(--muted-foreground)]/60 mr-1">
-          {format(message.timestamp, "HH:mm")}
+        <p className="text-[10px] text-[var(--muted-foreground)] mr-1">
+          <TimeLabel date={message.timestamp} />
         </p>
       </div>
     </div>
@@ -112,7 +109,7 @@ export function TypingIndicator() {
       </div>
       <div className="flex flex-col gap-1">
         <span className="text-xs text-[var(--muted-foreground)] ml-1">
-          观己·玄机
+          AI 命理师
         </span>
         <div className="rounded-2xl rounded-tl-sm border border-[var(--border)] bg-[var(--card)] px-4 py-3.5 shadow-sm">
           <div className="flex items-center gap-1.5">

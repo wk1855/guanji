@@ -1,22 +1,17 @@
 "use client";
 
 import { useRef, useEffect, KeyboardEvent } from "react";
-import { Send, Mic } from "lucide-react";
+import { Send } from "lucide-react";
 
 // ─── 快捷提问 ────────────────────────────────────────────────
-const QUICK_PROMPTS = [
-  { label: "今日运势如何", icon: "☀️" },
-  { label: "近期感情状况", icon: "❤️" },
-  { label: "事业发展方向", icon: "💼" },
-  { label: "财运如何", icon: "💰" },
-];
+const DEFAULT_PROMPTS = ["今日运势如何", "近期感情状况", "事业发展方向", "财运如何"];
 
 interface ChatInputProps {
   value: string;
   onChange: (v: string) => void;
   onSend: (text: string) => void;
   disabled?: boolean;
-  remainingCount?: number;
+  prompts?: string[];
 }
 
 export default function ChatInput({
@@ -24,6 +19,7 @@ export default function ChatInput({
   onChange,
   onSend,
   disabled,
+  prompts = DEFAULT_PROMPTS,
 }: ChatInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -56,18 +52,18 @@ export default function ChatInput({
   const isEmpty = !value.trim();
 
   return (
-    <div className="border-t border-[var(--border)] bg-[var(--card)] px-4 pt-3 pb-safe-or-4">
-      {/* 快捷提问 */}
-      <div className="flex gap-2 mb-3 overflow-x-auto pb-1 scrollbar-hide">
-        {QUICK_PROMPTS.map((q) => (
+    <div className="border-t border-[var(--border)] bg-[var(--card)] px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
+      <div className="mx-auto max-w-3xl">
+      {/* 快捷提问（可换行，避免移动端横向滚动） */}
+      <div className="flex flex-wrap gap-2 mb-3">
+        {prompts.map((label) => (
           <button
-            key={q.label}
-            onClick={() => handleQuick(q.label)}
+            key={label}
+            onClick={() => handleQuick(label)}
             disabled={disabled}
-            className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[var(--border)] bg-[var(--background)] text-xs text-[var(--muted-foreground)] hover:border-[var(--primary)]/50 hover:text-[var(--primary)] hover:bg-[var(--primary)]/5 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+            className="inline-flex items-center h-10 px-3.5 rounded-full border border-[var(--border)] bg-[var(--background)] text-xs text-[var(--muted-foreground)] hover:border-[var(--primary)]/50 hover:text-white hover:bg-[var(--primary)]/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <span>{q.icon}</span>
-            {q.label}
+            {label}
           </button>
         ))}
       </div>
@@ -88,42 +84,26 @@ export default function ChatInput({
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={handleKeyDown}
           disabled={disabled}
-          placeholder="向玄机问命…（Enter 发送，Shift+Enter 换行）"
-          className="flex-1 bg-transparent resize-none text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none leading-6 max-h-[120px] min-h-[24px]"
+          placeholder="问点什么…（Enter 发送，Shift+Enter 换行）"
+          aria-label="输入问题"
+          className="flex-1 self-center bg-transparent resize-none text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none leading-6 max-h-[120px] min-h-[24px]"
         />
-
-        {/* 语音按钮 */}
-        <button
-          type="button"
-          disabled={disabled}
-          className="flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center text-[var(--muted-foreground)] hover:bg-[var(--muted)] transition-colors disabled:opacity-40"
-        >
-          <Mic size={16} />
-        </button>
 
         {/* 发送按钮 */}
         <button
           type="button"
           onClick={handleSend}
           disabled={isEmpty || disabled}
-          className={`flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center transition-all ${
+          aria-label="发送"
+          className={`flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
             isEmpty || disabled
               ? "bg-[var(--muted)] text-[var(--muted-foreground)]"
               : "bg-[var(--primary)] text-white hover:opacity-90 active:scale-95 shadow-sm shadow-purple-300/50"
           }`}
         >
-          <Send size={14} />
+          <Send size={16} />
         </button>
       </div>
-
-      {/* 底部提示 */}
-      <div className="flex items-center justify-between mt-2 px-1">
-        <p className="text-[10px] text-[var(--muted-foreground)]/50">
-          AI 可能出错，内容仅供参考
-        </p>
-        <p className="text-[10px] text-[var(--muted-foreground)]/50">
-          个人站 · 无次数限制
-        </p>
       </div>
     </div>
   );

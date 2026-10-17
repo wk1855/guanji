@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Plus, MessageSquare, X, Menu, Trash2, Loader2 } from "lucide-react";
+import Link from "next/link";
+import { Plus, MessageSquare, X, PanelLeft, Trash2, Loader2, Home, ScrollText } from "lucide-react";
 import ChatMessageItem, {
   TypingIndicator,
   type ChatMessage,
@@ -17,23 +18,31 @@ interface SessionSummary {
   last_message: { role: string; content: string; created_at: string } | null;
 }
 
-// ─── 初始欢迎消息（仅前端展示，不入库、不进上下文）────────────────
-function welcomeMessage(): ChatMessage {
-  return {
-    id: `welcome-${Date.now()}`,
-    role: "assistant",
-    content:
-      "问道于此，万象俱明。\n\n我是观己·玄机，您的专属命理顾问。无论是八字格局、流年运势、感情事业，还是人生方向，皆可向我问询。\n\n请问有何指教？",
-    timestamp: new Date(),
-    reference: "《周易·系辞》：「仁者见之谓之仁，知者见之谓之知。」",
-  };
+// ─── 初始欢迎消息（仅前端展示，不入库、不进上下文；固定内容，避免 hydration 不一致）──
+const WELCOME: ChatMessage = {
+  id: "welcome",
+  role: "assistant",
+  content:
+    "你好，我是观己的 AI 命理师。\n\n我会结合今日黄历和你的本人命盘回答问题：八字格局、流年运势、感情事业都可以问。\n\n想聊点什么？",
+};
+
+interface ChartContext {
+  id: string;
+  name: string;
+  pillars: string;
+}
+
+function setUrlParams(params: Record<string, string | null>) {
+  const url = new URL(window.location.href);
+  for (const [k, v] of Object.entries(params)) {
+    if (v) url.searchParams.set(k, v);
+    else url.searchParams.delete(k);
+  }
+  window.history.replaceState(null, "", url.toString());
 }
 
 function setUrlSession(id: string | null) {
-  const url = new URL(window.location.href);
-  if (id) url.searchParams.set("session", id);
-  else url.searchParams.delete("session");
-  window.history.replaceState(null, "", url.toString());
+  setUrlParams({ session: id });
 }
 
 function formatTime(iso: string) {
@@ -65,27 +74,22 @@ function Sidebar({
 }) {
   return (
     <div className="h-full flex flex-col bg-[var(--card)] border-r border-[var(--border)]">
-      <div className="px-4 pt-5 pb-4 border-b border-[var(--border)]">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <span className="text-[var(--primary)] text-lg">☯</span>
-            <span className="font-bold text-[var(--foreground)] tracking-wider text-sm">
-              观己·玄机
-            </span>
-          </div>
+      <div className="px-4 pt-4 pb-4 border-b border-[var(--border)]">
+        <div className="flex items-center justify-between mb-3">
+          <span className="font-semibold text-[var(--foreground)] text-sm">会话记录</span>
           {onClose && (
             <button
               onClick={onClose}
-              className="w-7 h-7 rounded-lg flex items-center justify-center text-[var(--muted-foreground)] hover:bg-[var(--muted)] transition-colors lg:hidden"
-              aria-label="关闭侧边栏"
+              className="w-10 h-10 rounded-lg flex items-center justify-center text-[var(--muted-foreground)] hover:bg-[var(--muted)] transition-colors lg:hidden"
+              aria-label="关闭会话列表"
             >
-              <X size={14} />
+              <X size={16} />
             </button>
           )}
         </div>
         <button
           onClick={onNew}
-          className="w-full h-10 rounded-xl bg-[var(--primary)] text-white text-sm flex items-center justify-center gap-2 hover:opacity-90 active:scale-[0.98] transition-all"
+          className="w-full h-11 rounded-xl bg-[var(--primary)] text-white text-sm flex items-center justify-center gap-2 hover:opacity-90 active:scale-[0.98] transition-all"
         >
           <Plus size={15} />
           新建对话
@@ -93,9 +97,6 @@ function Sidebar({
       </div>
 
       <div className="flex-1 overflow-y-auto px-3 py-3 space-y-1">
-        <p className="text-[10px] text-[var(--muted-foreground)] tracking-wider px-2 mb-2">
-          历史会话
-        </p>
         {loading && (
           <div className="flex justify-center py-6">
             <Loader2 size={16} className="animate-spin text-[var(--muted-foreground)]" />
@@ -109,36 +110,32 @@ function Sidebar({
             key={session.id}
             className={`group relative rounded-xl transition-all ${
               session.id === activeId
-                ? "bg-[var(--primary)]/10 text-[var(--primary)]"
+                ? "bg-[var(--primary)]/10 text-[#a99ffb]"
                 : "text-[var(--muted-foreground)] hover:bg-[var(--muted)] hover:text-[var(--foreground)]"
             }`}
           >
             <button
               onClick={() => onSelect(session.id)}
-              className="w-full text-left px-3 py-2.5 pr-9 flex items-start gap-2"
+              className="w-full min-h-[44px] text-left px-3 py-2.5 pr-11 flex items-start gap-2"
             >
               <MessageSquare size={14} className="flex-shrink-0 mt-0.5 opacity-70" />
               <span className="min-w-0">
                 <span className="block text-xs font-medium leading-5 truncate">{session.title}</span>
-                <span className="block text-[10px] opacity-60">{formatTime(session.updated_at)}</span>
+                <span className="block text-[11px] opacity-80">{formatTime(session.updated_at)}</span>
               </span>
             </button>
             <button
               onClick={() => onDelete(session.id)}
-              className="absolute right-2 top-2.5 w-6 h-6 rounded-md flex items-center justify-center opacity-60 lg:opacity-0 group-hover:opacity-100 hover:bg-red-500/15 hover:text-red-400 transition"
+              className="absolute right-1 top-1/2 -translate-y-1/2 w-10 h-10 rounded-lg flex items-center justify-center opacity-80 lg:opacity-0 group-hover:opacity-100 focus:opacity-100 hover:bg-red-500/15 hover:text-red-400 transition"
               aria-label="删除对话"
             >
-              <Trash2 size={12} />
+              <Trash2 size={14} />
             </button>
           </div>
         ))}
       </div>
 
-      <div className="border-t border-[var(--border)] p-4">
-        <div className="rounded-xl bg-[var(--muted)] px-3 py-2.5">
-          <p className="text-xs text-[var(--muted-foreground)]">站长账号 · 无限对话 · 自动保存</p>
-        </div>
-      </div>
+      <p className="border-t border-[var(--border)] px-4 py-3 text-xs text-[var(--muted-foreground)]">对话自动保存，可在「档案」中管理</p>
     </div>
   );
 }
@@ -148,7 +145,8 @@ export default function AIChatPage() {
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [sessionsLoading, setSessionsLoading] = useState(true);
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<ChatMessage[]>(() => [welcomeMessage()]);
+  const [messages, setMessages] = useState<ChatMessage[]>([WELCOME]);
+  const [chart, setChart] = useState<ChartContext | null>(null);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [inputValue, setInputValue] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
@@ -185,11 +183,11 @@ export default function AIChatPage() {
           content: m.content,
           timestamp: new Date(m.created_at),
         }));
-      setMessages(loaded.length ? loaded : [welcomeMessage()]);
+      setMessages(loaded.length ? loaded : [WELCOME]);
     } catch {
       setActiveId(null);
       setUrlSession(null);
-      setMessages([welcomeMessage()]);
+      setMessages([WELCOME]);
     } finally {
       setLoadingMessages(false);
     }
@@ -197,9 +195,36 @@ export default function AIChatPage() {
 
   useEffect(() => {
     refreshSessions();
-    const id = new URLSearchParams(window.location.search).get("session");
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get("session");
     if (id) loadSession(id);
+    const chartId = params.get("chart");
+    if (chartId) {
+      fetch(`/api/bazi/history/${chartId}`, { cache: "no-store" })
+        .then((r) => r.json())
+        .then((payload) => {
+          if (!payload?.success) {
+            setUrlParams({ chart: null });
+            return;
+          }
+          const d = payload.data as Record<string, { tianGan?: string; diZhi?: string } | string | null>;
+          const pillars = ["year_pillar", "month_pillar", "day_pillar", "hour_pillar"]
+            .map((k) => {
+              const p = d[k] as { tianGan?: string; diZhi?: string } | null;
+              return p?.tianGan ? `${p.tianGan}${p.diZhi ?? ""}` : "";
+            })
+            .filter(Boolean)
+            .join(" ");
+          setChart({ id: chartId, name: String(d.name ?? ""), pillars });
+        })
+        .catch(() => undefined);
+    }
   }, [refreshSessions, loadSession]);
+
+  const clearChart = useCallback(() => {
+    setChart(null);
+    setUrlParams({ chart: null });
+  }, []);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -219,7 +244,7 @@ export default function AIChatPage() {
       const aiMsg: ChatMessage = { id: aiMsgId, role: "assistant", content: "", timestamp: new Date() };
 
       const contextMessages = [...messages, userMsg]
-        .filter((m) => !m.id.startsWith("welcome") && m.content)
+        .filter((m) => m.id !== "welcome" && m.content)
         .map((m) => ({ role: m.role, content: m.content }));
 
       setMessages((prev) => [...prev, userMsg, aiMsg]);
@@ -234,7 +259,7 @@ export default function AIChatPage() {
         const res = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sessionId: activeId, messages: contextMessages }),
+          body: JSON.stringify({ sessionId: activeId, messages: contextMessages, chartId: chart?.id ?? null }),
         });
 
         if (!res.ok) {
@@ -296,13 +321,13 @@ export default function AIChatPage() {
         refreshSessions();
       }
     },
-    [activeId, isStreaming, messages, refreshSessions]
+    [activeId, chart, isStreaming, messages, refreshSessions]
   );
 
   const handleNewSession = useCallback(() => {
     setActiveId(null);
     setUrlSession(null);
-    setMessages([welcomeMessage()]);
+    setMessages([WELCOME]);
     setSidebarOpen(false);
   }, []);
 
@@ -320,16 +345,22 @@ export default function AIChatPage() {
     [activeId, handleNewSession]
   );
 
+  const activeTitle = sessions.find((s) => s.id === activeId)?.title ?? "新对话";
+  const prompts = chart
+    ? [`解读${chart.name}的命盘格局`, `${chart.name}适合什么职业`, `${chart.name}今年运势如何`, "五行缺什么，怎么补"]
+    : undefined;
+
   return (
-    <div className="h-screen flex overflow-hidden bg-[var(--background)]">
+    <div className="h-[100dvh] flex overflow-hidden bg-[var(--background)]">
       {sidebarOpen && (
-        <div className="fixed inset-0 bg-black/40 z-30 lg:hidden" onClick={() => setSidebarOpen(false)} />
+        <div className="fixed inset-0 bg-black/50 z-30 lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
 
       <aside
-        className={`fixed lg:relative top-0 left-0 h-full w-60 z-40 transition-transform duration-300 ${
+        className={`fixed lg:relative top-0 left-0 h-full w-72 lg:w-64 z-40 transition-transform duration-300 ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         }`}
+        aria-label="会话列表"
       >
         <Sidebar
           sessions={sessions}
@@ -346,47 +377,79 @@ export default function AIChatPage() {
       </aside>
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <header className="flex-shrink-0 h-14 border-b border-[var(--border)] bg-[var(--card)]/80 backdrop-blur-sm px-4 flex items-center justify-between z-10">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="lg:hidden w-8 h-8 rounded-lg flex items-center justify-center text-[var(--muted-foreground)] hover:bg-[var(--muted)] transition-colors"
-              aria-label="打开会话列表"
-            >
-              <Menu size={16} />
-            </button>
-            <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-[var(--primary)] to-indigo-500 flex items-center justify-center text-white text-base shadow-md shadow-purple-200/50">
-              ☯
-            </div>
-            <div>
-              <p className="text-sm font-bold text-[var(--foreground)] leading-tight">观己·玄机</p>
-              <div className="flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-                <span className="text-[10px] text-[var(--muted-foreground)]">在线 · 命理 AI</span>
-              </div>
-            </div>
+        <header className="flex-shrink-0 h-14 border-b border-[var(--border)] bg-[var(--card)] px-2 sm:px-4 flex items-center gap-1 z-10">
+          <Link
+            href="/"
+            className="w-10 h-10 rounded-lg flex items-center justify-center text-[var(--muted-foreground)] hover:text-white hover:bg-[var(--muted)] transition-colors"
+            aria-label="返回看板"
+            title="返回看板"
+          >
+            <Home size={18} />
+          </Link>
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="lg:hidden h-10 px-3 rounded-lg flex items-center gap-1.5 text-sm text-[var(--foreground)] bg-[var(--muted)] hover:opacity-90 transition"
+            aria-label="打开会话列表"
+          >
+            <PanelLeft size={16} />
+            会话
+            {sessions.length > 0 && <span className="text-xs text-[var(--muted-foreground)]">{sessions.length}</span>}
+          </button>
+          <div className="min-w-0 flex-1 px-2">
+            <p className="text-sm font-semibold text-[var(--foreground)] leading-tight">AI 命理师</p>
+            <p className="text-xs text-[var(--muted-foreground)] truncate">{activeTitle}</p>
           </div>
-          <span className="text-xs text-[var(--muted-foreground)] hidden sm:block">
-            {sessions.find((s) => s.id === activeId)?.title ?? "新对话"}
-          </span>
+          <button
+            onClick={handleNewSession}
+            className="w-10 h-10 rounded-lg flex items-center justify-center text-[var(--muted-foreground)] hover:text-white hover:bg-[var(--muted)] transition-colors"
+            aria-label="新建对话"
+            title="新建对话"
+          >
+            <Plus size={18} />
+          </button>
         </header>
 
-        <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6">
-          {loadingMessages ? (
-            <div className="flex justify-center py-10">
-              <Loader2 className="animate-spin text-[var(--muted-foreground)]" />
-            </div>
-          ) : (
-            messages.map((msg) => (
-              <ChatMessageItem key={msg.id} message={msg} isStreaming={msg.id === streamingMessageId} />
-            ))
-          )}
-          {isStreaming && streamingMessageId === null && <TypingIndicator />}
-          <div ref={messagesEndRef} />
+        {chart && (
+          <div className="flex-shrink-0 border-b border-[var(--border)] bg-[var(--primary)]/10 px-4 py-2 flex items-center gap-2 text-xs text-[var(--foreground)]">
+            <ScrollText size={14} className="text-[#a99ffb] shrink-0" />
+            <span className="min-w-0 truncate">
+              已带入命盘：<b>{chart.name}</b>
+              {chart.pillars && <span className="ml-1 text-[var(--muted-foreground)]">{chart.pillars}</span>}
+            </span>
+            <button
+              onClick={clearChart}
+              className="ml-auto h-10 px-2 rounded-lg text-[var(--muted-foreground)] hover:text-white"
+              aria-label="不再带入此命盘"
+            >
+              改用本人命盘
+            </button>
+          </div>
+        )}
+
+        <div className="flex-1 overflow-y-auto px-4 py-6">
+          <div className="mx-auto max-w-3xl space-y-6">
+            {loadingMessages ? (
+              <div className="flex justify-center py-10">
+                <Loader2 className="animate-spin text-[var(--muted-foreground)]" />
+              </div>
+            ) : (
+              messages.map((msg) => (
+                <ChatMessageItem key={msg.id} message={msg} isStreaming={msg.id === streamingMessageId} />
+              ))
+            )}
+            {isStreaming && streamingMessageId === null && <TypingIndicator />}
+            <div ref={messagesEndRef} />
+          </div>
         </div>
 
         <div className="flex-shrink-0">
-          <ChatInput value={inputValue} onChange={setInputValue} onSend={handleSend} disabled={isStreaming || loadingMessages} />
+          <ChatInput
+            value={inputValue}
+            onChange={setInputValue}
+            onSend={handleSend}
+            disabled={isStreaming || loadingMessages}
+            prompts={prompts}
+          />
         </div>
       </div>
     </div>

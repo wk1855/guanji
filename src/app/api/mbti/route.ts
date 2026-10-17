@@ -143,7 +143,7 @@ export async function POST(req: NextRequest) {
       elementReading: aiResult.elementReading ?? "",
     };
 
-    saveMbtiResult({
+    const savedId = await saveMbtiResult({
       userId: auth.user.id,
       mbtiType,
       eScore: E,
@@ -156,9 +156,12 @@ export async function POST(req: NextRequest) {
       pScore: P,
       aiReading: aiResult.aiReading,
       elementAffinity,
-    }).catch((err) => console.error("[mbti API] save result error:", err));
+    }).catch((err) => {
+      console.error("[mbti API] save result error:", err);
+      return null;
+    });
 
-    return NextResponse.json(result);
+    return NextResponse.json({ ...result, id: savedId, saved: !!savedId });
   } catch (err) {
     console.error("[mbti API] error:", err);
     return NextResponse.json({ error: "测试解析失败" }, { status: 500 });

@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { chatCompletionStream } from "@/lib/deepseek";
 import { createChatSession, getChatSession, saveChatMessage } from "@/lib/db/chat";
-import { getLatestBaziChart } from "@/lib/db/bazi";
+import { getBaziChartById, getPersonalBaziChart } from "@/lib/db/bazi";
 import { formatSavedChartForPrompt, type BaziRecordRow } from "@/lib/bazi/record";
 import { formatAlmanacForPrompt, todayAlmanac } from "@/lib/fortune/almanac";
 import { enforceAiRateLimit, requireUser } from "@/lib/require-session";
 
-const SYSTEM_PROMPT = `你是「观己」平台的AI命理师，名为「玄机」。
+const SYSTEM_PROMPT = `你是「观己」的 AI 命理师。
 你精通八字命理、紫微斗数、梅花易数等东方命理体系，同时融合现代积极心理学为用户提供温和、正向的人生参考。
 
 【核心原则】
@@ -15,11 +15,11 @@ const SYSTEM_PROMPT = `你是「观己」平台的AI命理师，名为「玄机�
 3. 负面信息必须配套至少3条正向应对建议
 4. 不要编造典籍引文或出处；历法、命盘数据以系统提供的为准，不要自行推算或改动四柱
 5. 禁止出现「大凶」「必死」「破财」「血光之灾」「改命」「算命」等话术
-6. 每次回复结尾附上：「以上内容仅供娱乐参考，不构成任何决策建议。」
+6. 界面已在每条回复下方统一展示免责提示，回复正文中不要再重复「仅供娱乐参考」之类的声明
 
 【回复风格】
 - 语气：温暖、专业、富有东方哲学意蕴
-- 结构：先回应用户情绪 → 命理分析 → 正向建议 → 合规提示
+- 结构：先回应用户情绪 → 命理分析 → 正向建议
 - 长度：200-500字为宜，不宜过长`;
 
 const FORBIDDEN_WORDS = ["算命", "改命", "必中", "大凶", "破财", "血光之灾", "消灾", "化解灾难"];
@@ -81,9 +81,10 @@ export async function POST(req: NextRequest) {
     if (limited) return limited;
 
     const body = await req.json();
-    const { messages, sessionId: rawSessionId } = body as {
+    const { messages, sessionId: rawSessionId, chartId } = body as {
       messages: { role: string; content: string }[];
       sessionId?: string | null;
+      chartId?: string | null;
     };
 
     if (!messages || !Array.isArray(messages)) {
@@ -115,13 +116,27 @@ export async function POST(req: NextRequest) {
       await saveChatMessage({ sessionId, role: "user", content: lastUserMsg.content.trim() });
     }
 
-    // 自动带上今日黄历与站长最近保存的命盘，避免模型自行编造日期/干支
+    // 自动带上今日黄历与命盘：指定 chartId（从排盘结果「用这份命盘问 AI」进入）> 本人命盘 > 最近一份
     const almanac = todayAlmanac();
-    const latestChart = (await getLatestBaziChart(auth.user.id).catch(() => null)) as BaziRecordRow | null;
+    let chart: BaziRecordRow | null = null;
+    let chartLabel = "";
+    if (typeof chartId === "string" && chartId) {
+      chart = (await getBaziChartById(chartId, auth.user.id).catch(() => null)) as BaziRecordRow | null;
+      if (chart) chartLabel = `【本次对话指定的八字命盘（命主：${chart.name}，系统精确排出；用户问到"这个命盘/八字"时以此为准）】`;
+    }
+    if (!chart) {
+      const personal = await getPersonalBaziChart(auth.user.id).catch(() => ({ row: null, isDefault: false }));
+      chart = personal.row as BaziRecordRow | null;
+      if (chart) {
+        chartLabel = personal.isDefault
+          ? `【用户本人的八字命盘（系统精确排出，用户问到"我的命盘/八字"时以此为准；若用户谈论他人则不要套用）】`
+          : `【用户最近保存的八字命盘（尚未设为本人命盘，命主：${chart.name}；用户问到"我的命盘"时可参考，但若不确定是否为本人可先确认）】`;
+      }
+    }
     const contextBlock = [
       `【今日（北京时间）】\n${formatAlmanacForPrompt(almanac)}`,
-      latestChart
-        ? `【用户最近保存的八字命盘（系统精确排出，用户问到"我的命盘/八字"时以此为准；若用户谈论他人则不要套用）】\n${formatSavedChartForPrompt(latestChart)}`
+      chart
+        ? `${chartLabel}\n${formatSavedChartForPrompt(chart)}`
         : "【用户尚未保存八字命盘】如需个人命理分析，可建议先到「八字排盘」生成。",
     ].join("\n\n");
 

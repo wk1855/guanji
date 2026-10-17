@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { getBaziChartById, getLatestBaziChart } from "@/lib/db/bazi";
+import { getBaziChartById, getPersonalBaziChart } from "@/lib/db/bazi";
 import { formatSavedChartForPrompt, type BaziRecordRow } from "@/lib/bazi/record";
 import { ZODIAC_DATA } from "@/lib/data/zodiacData";
 import { formatSkyForPrompt, todaySky } from "@/lib/astro/sky";
@@ -70,9 +70,16 @@ export async function POST(req: NextRequest) {
   const sign = typeof body.sign === "string" && ZODIAC_DATA[body.sign.toLowerCase()] ? body.sign.toLowerCase() : null;
   if (body.sign && !sign) return fail(ErrorCode.VALIDATION_FAILED, "无效的星座参数", 400);
 
-  const row = (body.chartId
-    ? await getBaziChartById(body.chartId, auth.user.id)
-    : await getLatestBaziChart(auth.user.id)) as BaziRecordRow | null;
+  // 未指定 chartId 时使用「本人命盘」，未设置则回退到最近一份
+  let isDefaultChart = !!body.chartId;
+  let row: BaziRecordRow | null;
+  if (body.chartId) {
+    row = (await getBaziChartById(body.chartId, auth.user.id)) as BaziRecordRow | null;
+  } else {
+    const personal = await getPersonalBaziChart(auth.user.id);
+    row = personal.row as BaziRecordRow | null;
+    isDefaultChart = personal.isDefault;
+  }
 
   if (body.chartId && !row) return fail(ErrorCode.RESOURCE_NOT_FOUND, "命盘记录不存在", 404);
   // 「与八字深度结合」必须有命盘
@@ -82,7 +89,7 @@ export async function POST(req: NextRequest) {
 
   const ctx = buildPeriodContext(scope);
   const cacheKey = [CACHE_VERSION, auth.user.id, scope, sign ?? "-", row?.id ?? "-", ctx.todayKey].join(":");
-  if (!body.refresh && cache.has(cacheKey)) return ok(cache.get(cacheKey));
+  if (!body.refresh && cache.has(cacheKey)) return ok({ ...cache.get(cacheKey), isDefaultChart });
 
   const limited = enforceAiRateLimit(auth.user.id);
   if (limited) return limited;
@@ -125,7 +132,7 @@ export async function POST(req: NextRequest) {
     });
     cache.set(cacheKey, result);
     if (cache.size > 100) cache.delete(cache.keys().next().value as string);
-    return ok(result);
+    return ok({ ...result, isDefaultChart });
   } catch (err) {
     console.error("[fortune/personal] error:", err);
     return fail(ErrorCode.AI_SERVICE_ERROR, "AI 解读失败，请稍后重试", 502);

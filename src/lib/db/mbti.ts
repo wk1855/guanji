@@ -70,8 +70,37 @@ export async function getLatestMbtiResult(userId: string) {
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
     .limit(1)
-    .single();
+    .maybeSingle();
 
   if (error) return null;
   return data;
+}
+
+// 获取单条 MBTI 结果（验证所有权）
+export async function getMbtiResultById(id: string, userId: string) {
+  const supabase = createServiceRoleClient();
+  const { data, error } = await supabase
+    .from("mbti_results")
+    .select("*")
+    .eq("id", id)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error) return null;
+  return data;
+}
+
+// 删除单条 MBTI 结果（验证所有权），返回是否删除成功
+export async function deleteMbtiResult(id: string, userId: string) {
+  const supabase = createServiceRoleClient();
+  const { data, error } = await supabase
+    .from("mbti_results")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", userId)
+    .select("id");
+  if (error) {
+    console.error("[DB:mbti] deleteMbtiResult error:", error.message);
+    return false;
+  }
+  return (data?.length ?? 0) > 0;
 }

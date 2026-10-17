@@ -131,3 +131,50 @@ export async function deleteBaziChart(id: string, userId: string) {
   }
   return (data?.length ?? 0) > 0;
 }
+
+// 读取「本人命盘」id（users.default_bazi_chart_id）
+export async function getDefaultBaziChartId(userId: string): Promise<string | null> {
+  const supabase = createServiceRoleClient();
+  const { data, error } = await supabase
+    .from("users")
+    .select("default_bazi_chart_id")
+    .eq("id", userId)
+    .maybeSingle();
+  if (error) {
+    console.error("[DB:bazi] getDefaultBaziChartId error:", error.message);
+    return null;
+  }
+  return (data?.default_bazi_chart_id as string | null) ?? null;
+}
+
+// 设置/清除「本人命盘」（chartId 必须属于该用户）
+export async function setDefaultBaziChart(userId: string, chartId: string | null): Promise<boolean> {
+  const supabase = createServiceRoleClient();
+  if (chartId) {
+    const owned = await getBaziChartById(chartId, userId);
+    if (!owned) return false;
+  }
+  const { error } = await supabase
+    .from("users")
+    .update({ default_bazi_chart_id: chartId, updated_at: new Date().toISOString() })
+    .eq("id", userId);
+  if (error) {
+    console.error("[DB:bazi] setDefaultBaziChart error:", error.message);
+    return false;
+  }
+  return true;
+}
+
+/**
+ * 个性化所用命盘：优先「本人命盘」，未设置（或已被删除）时回退到最近保存的一份。
+ * isDefault=false 表示是回退结果，前端应提示用户设置本人命盘。
+ */
+export async function getPersonalBaziChart(userId: string) {
+  const defaultId = await getDefaultBaziChartId(userId);
+  if (defaultId) {
+    const row = await getBaziChartById(defaultId, userId);
+    if (row) return { row, isDefault: true as const };
+  }
+  const latest = await getLatestBaziChart(userId);
+  return { row: latest, isDefault: false as const };
+}

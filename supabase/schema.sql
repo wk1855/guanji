@@ -544,3 +544,9 @@ GRANT EXECUTE ON FUNCTION
   public.reset_daily_ai_quota(),
   public.upgrade_membership(uuid, text, timestamptz, int)
 TO service_role;
+
+-- ============================================================
+-- 本人命盘：运势/星座个性化与 AI 对话上下文优先使用此命盘（未设置则回退到最近一份）
+-- ============================================================
+ALTER TABLE public.users
+  ADD COLUMN IF NOT EXISTS default_bazi_chart_id UUID REFERENCES public.bazi_charts(id) ON DELETE SET NULL;

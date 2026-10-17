@@ -9,7 +9,7 @@ export async function GET() {
     const auth = await requireUser();
     if (auth.error) return auth.error;
 
-    const charts = await getUserBaziCharts(auth.user.id, 20);
+    const charts = await getUserBaziCharts(auth.user.id, 50);
     return ok(charts);
   } catch (err) {
     console.error("[bazi/history GET] error:", err);

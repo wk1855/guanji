@@ -34,6 +34,18 @@ export interface ComputedBaziChart {
   dayMaster: string;
   wuXingBalance: Record<FiveElement, number>;
   nayin: { year: string; month: string; day: string; hour: string };
+  /** 大运（需要性别；未提供性别时为空数组） */
+  daYun: DaYunStep[];
+  /** 起运信息，如「出生后 7 年 3 个月 15 天起运」 */
+  daYunStart?: { years: number; months: number; days: number; solarDate: string };
+}
+
+export interface DaYunStep {
+  startAge: number;
+  endAge: number;
+  startYear: number;
+  endYear: number;
+  ganZhi: string;
 }
 
 export interface ComputeBaziInput {
@@ -44,6 +56,7 @@ export interface ComputeBaziInput {
   birthMinute?: number;
   isLunar?: boolean;
   birthPlace?: string;
+  gender?: "male" | "female";
 }
 
 const STEM_ELEMENT: Record<string, FiveElement> = {
@@ -169,7 +182,31 @@ export function computeBaziChart(input: ComputeBaziInput): ComputedBaziChart {
     p.hide.forEach((gan, idx) => addScore(scores, gan, HIDDEN_STEM_WEIGHTS[idx] ?? 1));
   }
 
+  let daYun: DaYunStep[] = [];
+  let daYunStart: ComputedBaziChart["daYunStart"];
+  if (input.gender === "male" || input.gender === "female") {
+    const yun = eightChar.getYun(input.gender === "male" ? 1 : 0, 2);
+    daYun = yun
+      .getDaYun(9)
+      .filter((d) => d.getIndex() > 0 && d.getGanZhi())
+      .map((d) => ({
+        startAge: d.getStartAge(),
+        endAge: d.getEndAge(),
+        startYear: d.getStartYear(),
+        endYear: d.getEndYear(),
+        ganZhi: d.getGanZhi(),
+      }));
+    daYunStart = {
+      years: yun.getStartYear(),
+      months: yun.getStartMonth(),
+      days: yun.getStartDay(),
+      solarDate: yun.getStartSolar().toYmd(),
+    };
+  }
+
   return {
+    daYun,
+    daYunStart,
     solar: {
       year: adjusted.getYear(),
       month: adjusted.getMonth(),
@@ -222,6 +259,9 @@ export function formatChartForPrompt(chart: ComputedBaziChart): string {
     `日柱：${p(chart.dayPillar)}　纳音：${chart.nayin.day}`,
     `时柱：${p(chart.hourPillar)}　纳音：${chart.nayin.hour}`,
     `日主：${chart.dayMaster}`,
+    ...(chart.daYun.length
+      ? [`大运：${chart.daYun.map((d) => `${d.ganZhi}(${d.startAge}-${d.endAge}岁)`).join(" ")}`]
+      : []),
     `五行占比（天干+地支藏干加权后归一）：木${chart.wuXingBalance.木}% 火${chart.wuXingBalance.火}% 土${chart.wuXingBalance.土}% 金${chart.wuXingBalance.金}% 水${chart.wuXingBalance.水}%`,
   ].join("\n");
 }

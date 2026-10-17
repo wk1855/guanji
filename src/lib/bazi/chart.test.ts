@@ -114,4 +114,34 @@ describe("computeBaziChart", () => {
     assert.ok(urumqi.trueSolar.offsetMinutes < beijing.trueSolar.offsetMinutes);
     assert.equal(urumqi.trueSolar.applied, true);
   });
+
+  it("大运：1990-05-15 男命（庚年阳男）顺排，首步大运为壬午", () => {
+    const chart = computeBaziChart({
+      birthYear: 1990,
+      birthMonth: 5,
+      birthDay: 15,
+      birthHour: 10,
+      isLunar: false,
+      gender: "male",
+    });
+    assert.equal(chart.daYun.length, 8);
+    assert.equal(chart.daYun[0].ganZhi, "壬午");
+    assert.equal(chart.daYun[1].ganZhi, "癸未");
+    assert.ok(chart.daYunStart);
+    const female = computeBaziChart({
+      birthYear: 1990,
+      birthMonth: 5,
+      birthDay: 15,
+      birthHour: 10,
+      isLunar: false,
+      gender: "female",
+    });
+    // 阳女逆排
+    assert.equal(female.daYun[0].ganZhi, "庚辰");
+  });
+
+  it("未提供性别时不排大运", () => {
+    const chart = computeBaziChart({ birthYear: 1990, birthMonth: 5, birthDay: 15, birthHour: 10 });
+    assert.deepEqual(chart.daYun, []);
+  });
 });

@@ -54,6 +54,7 @@ export async function POST(req: NextRequest) {
         birthHour: birthHour != null ? Number(birthHour) : 12,
         isLunar: Boolean(isLunar),
         birthPlace: birthPlace ?? undefined,
+        gender: gender === "female" ? "female" : "male",
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : "排盘参数无效";
@@ -104,10 +105,12 @@ ${formatChartForPrompt(chart)}`;
         lunar: chart.lunar,
         trueSolar: chart.trueSolar,
         nayin: chart.nayin,
+        daYun: chart.daYun,
+        daYunStart: chart.daYunStart,
       },
     };
 
-    saveBaziChart({
+    const chartId = await saveBaziChart({
       userId: auth.user.id,
       name,
       gender: gender ?? "male",
@@ -118,9 +121,12 @@ ${formatChartForPrompt(chart)}`;
       birthPlace: birthPlace ?? undefined,
       isLunar: Boolean(isLunar),
       resultJson: result,
-    }).catch((err) => console.error("[bazi API] save chart error:", err));
+    }).catch((err) => {
+      console.error("[bazi API] save chart error:", err);
+      return null;
+    });
 
-    return NextResponse.json(result);
+    return NextResponse.json({ ...result, id: chartId });
   } catch (err) {
     console.error("[bazi API] error:", err);
     return NextResponse.json({ error: "排盘失败" }, { status: 500 });

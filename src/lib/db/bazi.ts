@@ -45,12 +45,14 @@ export async function saveBaziChart(params: {
   return data?.id ?? null;
 }
 
-// 获取用户的八字历史记录
-export async function getUserBaziCharts(userId: string, limit = 10) {
+// 获取用户的八字历史记录（新到旧）
+export async function getUserBaziCharts(userId: string, limit = 50) {
   const supabase = createServiceRoleClient();
   const { data, error } = await supabase
     .from("bazi_charts")
-    .select("id, name, gender, birth_year, birth_month, birth_day, day_master, summary, created_at")
+    .select(
+      "id, name, gender, birth_year, birth_month, birth_day, birth_hour, birth_place, is_lunar, year_pillar, month_pillar, day_pillar, hour_pillar, day_master, summary, created_at"
+    )
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
     .limit(limit);
@@ -62,7 +64,25 @@ export async function getUserBaziCharts(userId: string, limit = 10) {
   return data ?? [];
 }
 
-// 获取单条八字命盘详情
+// 获取最新一条八字命盘（用于个性化运势）
+export async function getLatestBaziChart(userId: string) {
+  const supabase = createServiceRoleClient();
+  const { data, error } = await supabase
+    .from("bazi_charts")
+    .select("*")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error("[DB:bazi] getLatestBaziChart error:", error.message);
+    return null;
+  }
+  return data;
+}
+
+// 获取单条八字命盘详情（验证所有权）
 export async function getBaziChartById(id: string, userId: string) {
   const supabase = createServiceRoleClient();
   const { data, error } = await supabase
@@ -70,8 +90,25 @@ export async function getBaziChartById(id: string, userId: string) {
     .select("*")
     .eq("id", id)
     .eq("user_id", userId)
-    .single();
+    .maybeSingle();
 
   if (error) return null;
   return data;
+}
+
+// 删除单条八字命盘（验证所有权），返回是否删除成功
+export async function deleteBaziChart(id: string, userId: string) {
+  const supabase = createServiceRoleClient();
+  const { data, error } = await supabase
+    .from("bazi_charts")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", userId)
+    .select("id");
+
+  if (error) {
+    console.error("[DB:bazi] deleteBaziChart error:", error.message);
+    return false;
+  }
+  return (data?.length ?? 0) > 0;
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import type { BaziResult, Pillar } from "@/app/(main)/bazi/page";
+import type { BaziResult, DaYunStep, Pillar } from "@/app/(main)/bazi/page";
 
 // ─── 五行色映射 ──────────────────────────────────────────────
 const WU_XING_STYLE: Record<
@@ -116,48 +116,49 @@ function PillarCard({
   );
 }
 
-// ─── 大运走势装饰行 ──────────────────────────────────────────
-const DA_YUN = [
-  { age: "6", tg: "己", dz: "卯" },
-  { age: "16", tg: "庚", dz: "辰" },
-  { age: "26", tg: "辛", dz: "巳" },
-  { age: "36", tg: "壬", dz: "午" },
-  { age: "46", tg: "癸", dz: "未" },
-  { age: "56", tg: "甲", dz: "申" },
-];
-
-function DaYunRow() {
+// ─── 大运走势（lunar-javascript 按性别顺逆排出）───────────────
+function DaYunRow({
+  daYun,
+  start,
+}: {
+  daYun: DaYunStep[];
+  start?: { years: number; months: number; days: number; solarDate: string };
+}) {
+  const thisYear = new Date().getFullYear();
   return (
     <div className="mt-4 rounded-xl border border-[var(--border)] bg-[var(--card)] overflow-hidden">
-      <div className="px-4 py-2 border-b border-[var(--border)] bg-[var(--muted)]">
+      <div className="px-4 py-2 border-b border-[var(--border)] bg-[var(--muted)] flex items-center justify-between gap-2">
         <span className="text-xs font-semibold text-[var(--muted-foreground)] tracking-wider">
-          大运走势（节略）
+          大运走势（每步十年）
         </span>
+        {start && (
+          <span className="text-[10px] text-[var(--muted-foreground)]">
+            出生后 {start.years} 年 {start.months} 个月 {start.days} 天起运（{start.solarDate}）
+          </span>
+        )}
       </div>
       <div className="flex overflow-x-auto">
-        {DA_YUN.map((yun) => (
-          <div
-            key={yun.age}
-            className="flex-shrink-0 flex flex-col items-center px-4 py-3 border-r border-[var(--border)] last:border-r-0 hover:bg-[var(--muted)] transition-colors cursor-default"
-          >
-            <span className="text-[10px] text-[var(--muted-foreground)] mb-1">
-              {yun.age}岁
-            </span>
-            <span className="text-base font-bold text-[var(--foreground)]">
-              {yun.tg}
-            </span>
-            <span className="text-base font-bold text-[var(--muted-foreground)]">
-              {yun.dz}
-            </span>
-          </div>
-        ))}
-        {/* 锁定提示 */}
-        <div className="flex-shrink-0 flex flex-col items-center justify-center px-4 py-3 bg-[var(--muted)]/50">
-          <span className="text-base">🔒</span>
-          <span className="text-[10px] text-[var(--muted-foreground)] mt-1 whitespace-nowrap">
-            解锁更多
-          </span>
-        </div>
+        {daYun.map((yun) => {
+          const current = thisYear >= yun.startYear && thisYear <= yun.endYear;
+          return (
+            <div
+              key={yun.startYear}
+              className={`flex-shrink-0 flex flex-col items-center px-4 py-3 border-r border-[var(--border)] last:border-r-0 transition-colors cursor-default ${
+                current ? "bg-[var(--primary)]/15" : "hover:bg-[var(--muted)]"
+              }`}
+              title={`${yun.startYear}–${yun.endYear}`}
+            >
+              <span className="text-[10px] text-[var(--muted-foreground)] mb-1">
+                {yun.startAge}–{yun.endAge}岁
+              </span>
+              <span className="text-base font-bold text-[var(--foreground)]">{yun.ganZhi.charAt(0)}</span>
+              <span className="text-base font-bold text-[var(--muted-foreground)]">{yun.ganZhi.charAt(1)}</span>
+              <span className={`text-[10px] mt-1 ${current ? "text-[var(--primary)] font-semibold" : "text-[var(--muted-foreground)]"}`}>
+                {current ? "当前" : yun.startYear}
+              </span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -241,7 +242,9 @@ export default function BaziChart({ result }: BaziChartProps) {
       </div>
 
       {/* 大运走势 */}
-      <DaYunRow />
+      {result.meta?.daYun && result.meta.daYun.length > 0 && (
+        <DaYunRow daYun={result.meta.daYun} start={result.meta.daYunStart} />
+      )}
     </div>
   );
 }

@@ -9,6 +9,7 @@ declare module "lunar-javascript" {
       second: number
     ): Solar;
     static fromJulianDay(julianDay: number): Solar;
+    static fromYmd(year: number, month: number, day: number): Solar;
     getYear(): number;
     getMonth(): number;
     getDay(): number;
@@ -16,6 +17,8 @@ declare module "lunar-javascript" {
     getMinute(): number;
     getSecond(): number;
     getJulianDay(): number;
+    getWeek(): number;
+    next(days: number): Solar;
     getLunar(): Lunar;
     toYmd(): string;
     toYmdHms(): string;
@@ -40,6 +43,11 @@ declare module "lunar-javascript" {
     getDayInChinese(): string;
     getYearInGanZhi(): string;
     getYearShengXiao(): string;
+    getMonthInGanZhi(): string;
+    getDayInGanZhi(): string;
+    getYearInGanZhiExact(): string;
+    getMonthInGanZhiExact(): string;
+    getDayInGanZhiExact(): string;
     getSolar(): Solar;
     getEightChar(): EightChar;
     toString(): string;
@@ -71,6 +79,24 @@ declare module "lunar-javascript" {
     getMonthWuXing(): string;
     getDayWuXing(): string;
     getTimeWuXing(): string;
+    getYun(gender: number, sect?: number): Yun;
     toString(): string;
+  }
+
+  export class Yun {
+    getStartYear(): number;
+    getStartMonth(): number;
+    getStartDay(): number;
+    getStartSolar(): Solar;
+    getDaYun(n?: number): DaYun[];
+  }
+
+  export class DaYun {
+    getIndex(): number;
+    getStartAge(): number;
+    getEndAge(): number;
+    getStartYear(): number;
+    getEndYear(): number;
+    getGanZhi(): string;
   }
 }

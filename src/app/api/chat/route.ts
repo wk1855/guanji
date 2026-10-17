@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { chatCompletionStream } from "@/lib/deepseek";
+import { createChatSession, getChatSession, saveChatMessage } from "@/lib/db/chat";
 import { enforceAiRateLimit, requireUser } from "@/lib/require-session";
 
 const SYSTEM_PROMPT = `你是「观己」平台的AI命理师，名为「玄机」。
@@ -24,6 +25,51 @@ function containsForbiddenWords(text: string): boolean {
   return FORBIDDEN_WORDS.some((word) => text.includes(word));
 }
 
+/**
+ * 透传 SSE，同时累积 assistant 回复内容；流结束时（在关闭响应前）写入数据库，
+ * 确保 Serverless 函数不会在保存完成前被回收。
+ */
+function teeAndPersist(body: ReadableStream<Uint8Array>, onDone: (text: string) => Promise<void>) {
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let text = "";
+
+  const consume = (line: string) => {
+    if (!line.startsWith("data:")) return;
+    const data = line.slice(5).trim();
+    if (!data || data === "[DONE]") return;
+    try {
+      const json = JSON.parse(data);
+      text += json.choices?.[0]?.delta?.content ?? "";
+    } catch {
+      // 忽略无法解析的行
+    }
+  };
+
+  return new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const reader = body.getReader();
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          controller.enqueue(value);
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split(/\r?\n/);
+          buffer = lines.pop() ?? "";
+          lines.forEach(consume);
+        }
+        if (buffer) consume(buffer);
+        await onDone(text).catch((err) => console.error("[chat API] persist error:", err));
+        controller.close();
+      } catch (err) {
+        if (text) await onDone(text).catch(() => undefined);
+        controller.error(err);
+      }
+    },
+  });
+}
+
 export async function POST(req: NextRequest) {
   try {
     const auth = await requireUser();
@@ -32,18 +78,38 @@ export async function POST(req: NextRequest) {
     if (limited) return limited;
 
     const body = await req.json();
-    const { messages } = body as { messages: { role: string; content: string }[] };
+    const { messages, sessionId: rawSessionId } = body as {
+      messages: { role: string; content: string }[];
+      sessionId?: string | null;
+    };
 
     if (!messages || !Array.isArray(messages)) {
       return NextResponse.json({ error: "messages 参数无效" }, { status: 400 });
     }
 
     const lastUserMsg = messages.filter((m) => m.role === "user").at(-1);
-    if (lastUserMsg && containsForbiddenWords(lastUserMsg.content)) {
+    if (!lastUserMsg || !lastUserMsg.content?.trim()) {
+      return NextResponse.json({ error: "消息不能为空" }, { status: 400 });
+    }
+    if (containsForbiddenWords(lastUserMsg.content)) {
       return NextResponse.json(
         { error: "您的提问包含不合规内容，请调整后重试。" },
         { status: 400 }
       );
+    }
+
+    // 会话：传入的 sessionId 必须属于当前用户，否则新建
+    let sessionId: string | null = null;
+    if (typeof rawSessionId === "string" && rawSessionId) {
+      const existing = await getChatSession(rawSessionId, auth.user.id);
+      if (existing) sessionId = existing.id as string;
+    }
+    if (!sessionId) {
+      const title = lastUserMsg.content.trim().replace(/\s+/g, " ").slice(0, 20);
+      sessionId = await createChatSession(auth.user.id, title);
+    }
+    if (sessionId) {
+      await saveChatMessage({ sessionId, role: "user", content: lastUserMsg.content.trim() });
     }
 
     const upstreamMessages = [
@@ -54,10 +120,24 @@ export async function POST(req: NextRequest) {
       })),
     ];
 
-    return await chatCompletionStream({
+    const upstream = await chatCompletionStream({
       messages: upstreamMessages,
       maxTokens: 2048,
     });
+
+    const headers = new Headers(upstream.headers);
+    if (sessionId) headers.set("X-Session-Id", sessionId);
+    if (!sessionId || !upstream.body) {
+      return new Response(upstream.body, { headers });
+    }
+
+    const persistedSessionId = sessionId;
+    const stream = teeAndPersist(upstream.body, async (text) => {
+      if (text.trim()) {
+        await saveChatMessage({ sessionId: persistedSessionId, role: "assistant", content: text });
+      }
+    });
+    return new Response(stream, { headers });
   } catch (err) {
     console.error("[chat API] error:", err);
     return NextResponse.json({ error: "服务器内部错误" }, { status: 500 });

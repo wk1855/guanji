@@ -6,6 +6,7 @@ import { Plus, MessageSquare, X, PanelLeft, Trash2, Loader2, Home, ScrollText } 
 import ChatMessageItem, {
   TypingIndicator,
   type ChatMessage,
+  type RateHandler,
 } from "@/components/ai-chat/ChatMessage";
 import ChatInput from "@/components/ai-chat/ChatInput";
 
@@ -175,13 +176,24 @@ export default function AIChatPage() {
       const res = await fetch(`/api/chat/sessions/${id}`, { cache: "no-store" });
       const payload = await res.json();
       if (!payload?.success) throw new Error(payload?.error?.message ?? "加载失败");
-      const loaded: ChatMessage[] = (payload.data.messages as { id: string; role: string; content: string; created_at: string }[])
+      const loaded: ChatMessage[] = (
+        payload.data.messages as {
+          id: string;
+          role: string;
+          content: string;
+          created_at: string;
+          log_id?: string;
+          quick_rating?: 1 | -1 | null;
+        }[]
+      )
         .filter((m) => m.role === "user" || m.role === "assistant")
         .map((m) => ({
           id: m.id,
           role: m.role as "user" | "assistant",
           content: m.content,
           timestamp: new Date(m.created_at),
+          logId: m.log_id ?? null,
+          quickRating: m.quick_rating ?? null,
         }));
       setMessages(loaded.length ? loaded : [WELCOME]);
     } catch {
@@ -268,6 +280,9 @@ export default function AIChatPage() {
           throw new Error(msg || `HTTP ${res.status}`);
         }
 
+        const logId = res.headers.get("X-Log-Id");
+        if (logId) setMessages((prev) => prev.map((m) => (m.id === aiMsgId ? { ...m, logId } : m)));
+
         const newSessionId = res.headers.get("X-Session-Id");
         if (newSessionId && newSessionId !== activeId) {
           setActiveId(newSessionId);
@@ -322,6 +337,33 @@ export default function AIChatPage() {
       }
     },
     [activeId, chart, isStreaming, messages, refreshSessions]
+  );
+
+  // 👍/👎：写入该回复对应的调用日志；日志在流结束后异步写入，刚生成时可能还没落库，404 时稍后重试一次
+  const handleRate: RateHandler = useCallback(
+    async (messageId, value) => {
+      const target = messages.find((m) => m.id === messageId);
+      if (!target?.logId) return;
+      const prevValue = target.quickRating ?? null;
+      setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, quickRating: value } : m)));
+      const send = () =>
+        fetch(`/api/ai-logs/${target.logId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ quickRating: value }),
+        });
+      try {
+        let res = await send();
+        if (res.status === 404) {
+          await new Promise((r) => setTimeout(r, 1500));
+          res = await send();
+        }
+        if (!res.ok) throw new Error();
+      } catch {
+        setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, quickRating: prevValue } : m)));
+      }
+    },
+    [messages]
   );
 
   const handleNewSession = useCallback(() => {
@@ -434,7 +476,12 @@ export default function AIChatPage() {
               </div>
             ) : (
               messages.map((msg) => (
-                <ChatMessageItem key={msg.id} message={msg} isStreaming={msg.id === streamingMessageId} />
+                <ChatMessageItem
+                  key={msg.id}
+                  message={msg}
+                  isStreaming={msg.id === streamingMessageId}
+                  onRate={handleRate}
+                />
               ))
             )}
             {isStreaming && streamingMessageId === null && <TypingIndicator />}

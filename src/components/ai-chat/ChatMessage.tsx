@@ -41,11 +41,47 @@ export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
   timestamp?: Date;
+  /** 对应的 AI 调用日志 id（用于 👍/👎） */
+  logId?: string | null;
+  quickRating?: 1 | -1 | null;
 }
+
+export type RateHandler = (messageId: string, value: 1 | -1 | null) => void;
 
 interface ChatMessageProps {
   message: ChatMessage;
   isStreaming?: boolean;
+  onRate?: RateHandler;
+}
+
+function QuickRate({ message, onRate }: { message: ChatMessage; onRate: RateHandler }) {
+  const btn = (value: 1 | -1, label: string, emoji: string) => {
+    const active = message.quickRating === value;
+    return (
+      <button
+        type="button"
+        onClick={() => onRate(message.id, active ? null : value)}
+        aria-pressed={active}
+        aria-label={label}
+        title={label}
+        className={`inline-flex h-10 w-10 items-center justify-center rounded-lg text-base transition ${
+          active
+            ? value === 1
+              ? "bg-emerald-500/20 ring-1 ring-emerald-400/50"
+              : "bg-red-500/20 ring-1 ring-red-400/50"
+            : "opacity-70 hover:opacity-100 hover:bg-white/5"
+        }`}
+      >
+        <span aria-hidden="true">{emoji}</span>
+      </button>
+    );
+  };
+  return (
+    <span className="inline-flex items-center gap-0.5">
+      {btn(1, "这条回复不错", "👍")}
+      {btn(-1, "这条回复不好", "👎")}
+    </span>
+  );
 }
 
 // ─── 打字光标 ────────────────────────────────────────────────
@@ -59,9 +95,11 @@ function Cursor() {
 function AssistantBubble({
   message,
   isStreaming,
+  onRate,
 }: {
   message: ChatMessage;
   isStreaming?: boolean;
+  onRate?: RateHandler;
 }) {
   return (
     <div className="flex items-start gap-3 max-w-[85%]">
@@ -86,9 +124,12 @@ function AssistantBubble({
 
         {/* 免责声明 */}
         {!isStreaming && message.id !== "welcome" && (
-          <p className="text-[11px] text-[var(--muted-foreground)] ml-1">
-            仅供娱乐参考，不构成决策建议 <TimeLabel date={message.timestamp} />
-          </p>
+          <div className="flex flex-wrap items-center gap-x-2 ml-1">
+            <p className="text-[11px] text-[var(--muted-foreground)]">
+              仅供娱乐参考，不构成决策建议 <TimeLabel date={message.timestamp} />
+            </p>
+            {message.logId && onRate && <QuickRate message={message} onRate={onRate} />}
+          </div>
         )}
       </div>
     </div>
@@ -150,9 +191,10 @@ export function TypingIndicator() {
 export default function ChatMessageItem({
   message,
   isStreaming,
+  onRate,
 }: ChatMessageProps) {
   if (message.role === "user") {
     return <UserBubble message={message} />;
   }
-  return <AssistantBubble message={message} isStreaming={isStreaming} />;
+  return <AssistantBubble message={message} isStreaming={isStreaming} onRate={onRate} />;
 }

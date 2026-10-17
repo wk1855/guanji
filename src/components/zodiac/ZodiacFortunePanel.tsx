@@ -1,6 +1,7 @@
 "use client";
 
-import { Star, Briefcase, Heart, DollarSign, Activity, Lock, ChevronRight, Sparkles } from "lucide-react";
+import { Star, Briefcase, Heart, DollarSign, Activity, Sparkles } from "lucide-react";
+import PersonalFortuneCard from "@/components/fortune/PersonalFortuneCard";
 import { ZodiacInfo } from "@/types";
 
 interface FortuneDimension {
@@ -261,27 +262,23 @@ export default function ZodiacFortunePanel({
           </p>
         </div>
 
-        {/* 付费引导：与八字深度结合 */}
+        {/* 与八字深度结合解读 */}
         <div className="px-6 py-5">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-start gap-3">
-              <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-amber-500/15 border border-amber-500/25">
-                <Lock className="h-3.5 w-3.5 text-amber-400" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-white mb-0.5">
-                  与八字深度结合解读
-                </p>
-                <p className="text-xs text-white/40">
-                  融合本命盘与今日星象，给出个性化建议
-                </p>
-              </div>
+          <div className="mb-3 flex items-start gap-3">
+            <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-amber-500/15 border border-amber-500/25">
+              <Sparkles className="h-3.5 w-3.5 text-amber-400" />
             </div>
-            <button className="shrink-0 inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-400 px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-amber-500/20 hover:opacity-90 transition-opacity">
-              解锁
-              <ChevronRight className="h-3.5 w-3.5" />
-            </button>
+            <div>
+              <p className="text-sm font-medium text-white mb-0.5">与八字深度结合解读</p>
+              <p className="text-xs text-white/40">融合本命盘与今日星象，给出个性化建议</p>
+            </div>
           </div>
+          <PersonalFortuneCard
+            key={zodiacInfo.sign}
+            scope="today"
+            sign={zodiacInfo.sign}
+            ctaLabel="生成八字 × 星座解读"
+          />
         </div>
       </div>
     </div>

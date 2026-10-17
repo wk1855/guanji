@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
+import PersonalFortuneCard from "@/components/fortune/PersonalFortuneCard";
 import {
   Star,
   Briefcase,
@@ -13,12 +14,10 @@ import {
   XCircle,
   Lightbulb,
   Gift,
-  Lock,
   ChevronRight,
   Flame,
   Calendar,
   Loader2,
-  Sparkles,
 } from "lucide-react";
 
 type TabKey = "today" | "week" | "month";
@@ -167,42 +166,13 @@ export default function FortunePage() {
         </div>
 
         {activeTab !== "today" && (
-          <div className="rounded-2xl border border-white/10 bg-[#13102a] p-12 text-center">
-            {sessionLoading ? (
-              <Loader2 className="mx-auto h-8 w-8 animate-spin text-white/30" />
-            ) : !isLoggedIn ? (
-              <>
-                <Lock className="mx-auto mb-4 h-10 w-10 text-[#5749F4]/40" />
-                <h3 className="mb-2 text-lg font-semibold text-white">
-                  {activeTab === "week" ? "本周运势" : "本月运势"}解读
-                </h3>
-                <p className="mb-6 text-sm text-white/40">
-                  {activeTab === "week"
-                    ? "本周运势涵盖7天详细运程，助你合理规划每一天"
-                    : "本月深度解读，含月度运势走势图与关键节点预警"}
-                </p>
-                <Link
-                  href={`/login?callbackUrl=/fortune`}
-                  className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#5749F4] to-[#7C3AED] px-6 py-2.5 text-sm font-semibold text-white"
-                >
-                  登录查看
-                  <ChevronRight className="h-4 w-4" />
-                </Link>
-              </>
-            ) : (
-              <>
-                <Sparkles className="mx-auto mb-4 h-10 w-10 text-[#5749F4]/60" />
-                <h3 className="mb-2 text-lg font-semibold text-white">
-                  {activeTab === "week" ? "本周运势" : "本月运势"}即将上线
-                </h3>
-                <p className="mb-2 text-sm text-white/40">
-                  {activeTab === "week"
-                    ? "本周运势涵盖7天详细运程，助你合理规划每一天"
-                    : "本月深度解读，含月度运势走势图与关键节点预警"}
-                </p>
-                <p className="text-xs text-[#8B7CF6]">功能开发中，敬请期待</p>
-              </>
-            )}
+          <div className="space-y-4">
+            <p className="text-sm text-white/45">
+              {activeTab === "week"
+                ? "本周 7 天逐日运程：结合每日真实干支与你的本命盘，助你合理规划每一天"
+                : "本月深度报告：含月度走势、关键节点提醒与个性化建议，结合你的本命盘与当前大运"}
+            </p>
+            <PersonalFortuneCard key={activeTab} scope={activeTab} autoLoad />
           </div>
         )}
 
@@ -394,38 +364,25 @@ export default function FortunePage() {
                       </div>
                     )}
 
-                    <p className="mt-4 text-center text-xs text-white/25">
-                      连续签到 7 天可解锁专属「命理深读」报告一次
-                    </p>
                   </div>
                 </div>
 
-                {!isLoggedIn && !sessionLoading ? (
-                  <div className="rounded-2xl border border-[#5749F4]/20 bg-[#5749F4]/5 p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="space-y-3">
+                  <div className="flex flex-wrap items-end justify-between gap-2">
                     <div>
-                      <p className="font-medium text-white mb-1">登录后查看专属八字运势</p>
-                      <p className="text-sm text-white/45">基于你的生辰八字，提供个性化运势解读</p>
+                      <p className="font-medium text-white">专属八字运势 · 命理深读</p>
+                      <p className="text-sm text-white/45">基于你保存的八字命盘与今日干支，给出个性化解读</p>
                     </div>
-                    <Link
-                      href="/login?callbackUrl=/fortune"
-                      className="shrink-0 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#5749F4] to-[#7C3AED] px-6 py-2.5 text-sm font-semibold text-white"
+                    <button
+                      onClick={() => setActiveTab("month")}
+                      className="inline-flex items-center gap-1 text-xs text-[#A78BFA] hover:text-white"
                     >
-                      立即登录
-                      <ChevronRight className="h-4 w-4" />
-                    </Link>
-                  </div>
-                ) : isLoggedIn ? (
-                  <div className="rounded-2xl border border-amber-400/20 bg-amber-400/5 p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                    <div>
-                      <p className="font-medium text-white mb-1">解锁深度月度运势报告</p>
-                      <p className="text-sm text-white/45">含月度走势图、关键节点提醒、个性化建议</p>
-                    </div>
-                    <button className="shrink-0 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-400 px-6 py-2.5 text-sm font-semibold text-white">
-                      解锁 ¥19
-                      <ChevronRight className="h-4 w-4" />
+                      深度月度运势报告
+                      <ChevronRight className="h-3.5 w-3.5" />
                     </button>
                   </div>
-                ) : null}
+                  <PersonalFortuneCard scope="today" ctaLabel="生成今日专属解读" />
+                </div>
               </>
             ) : null}
           </div>

@@ -82,8 +82,8 @@ const FEATURE_CARDS: FeatureCard[] = [
   {
     icon: TrendingUp,
     title: "流年运势",
-    desc: "2026年全年运势深度解读，含犯太岁专项报告与化解建议",
-    ctaLabel: "免费查看",
+    desc: "今日、本周、本月运势，结合你的八字命盘、大运与流年干支深度解读",
+    ctaLabel: "立即查看",
     ctaHref: "/fortune",
     gradient: "from-[#4F46E5] to-[#818CF8]",
   },

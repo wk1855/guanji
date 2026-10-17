@@ -473,11 +473,11 @@ export default function ProfilePage() {
                     <div className="mt-3 space-y-2 border-t border-[var(--border)] pt-3">
                       {dims.map(([l, lv, r, rv]) => (
                         <div key={l} className="flex items-center gap-2 text-xs text-[var(--muted-foreground)]">
-                          <span className="w-14 shrink-0">{l} {lv}%</span>
+                          <span className="w-20 shrink-0 whitespace-nowrap">{l} {lv}%</span>
                           <div className="h-1.5 flex-1 rounded-full bg-[var(--muted)] overflow-hidden">
                             <div className="h-full rounded-full bg-[var(--primary)]" style={{ width: `${lv}%` }} />
                           </div>
-                          <span className="w-14 shrink-0 text-right">{rv}% {r}</span>
+                          <span className="w-20 shrink-0 whitespace-nowrap text-right">{rv}% {r}</span>
                         </div>
                       ))}
                       {detail?.ai_reading && (
